@@ -9,19 +9,30 @@ export default {
     icon: "./assets/studyAgora.jpeg",
     userInterfaceStyle: "light",
     newArchEnabled: true,
+    // Temporarily commented out for Expo Go testing
+    // scheme: "studyagora",
     splash: {
       image: "./assets/studyAgora.jpeg",
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      // Temporarily commented out for Expo Go testing
+      // bundleIdentifier: "com.studyagora.app",
+      infoPlist: {
+        NSAppTransportSecurity: {
+          NSAllowsArbitraryLoads: true
+        }
+      }
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/studyAgora.jpeg",
         backgroundColor: "#ffffff"
-      }
+      },
+      // Temporarily commented out for Expo Go testing
+      // package: "com.studyagora.app"
     },
     web: {
       favicon: "./assets/studyAgora.jpeg"

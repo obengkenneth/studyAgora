@@ -1,15 +1,33 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import { supabase } from '../services/supabase';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Image, ImageBackground } from 'react-native';
+import { signInWithEmail, signInWithGoogle, supabase } from '../services/supabase';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { validateEmail } from '../utils/validation';
 
-export default function SignInScreen({ navigation }) {
+// App color scheme
+const COLORS = {
+  primary: '#4CAF50', // Green
+  secondary: '#D32F2F', // Red
+  accent: '#FFD700', // Gold
+  text: '#1F2937',
+  lightText: '#6B7280',
+  background: '#FFFFFF',
+};
+
+export default function SignInScreen({ route, navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    // Check if we have an email from verification
+    if (route.params?.verifiedEmail) {
+      setEmail(route.params.verifiedEmail);
+    }
+  }, [route.params]);
 
   function validateForm() {
     const newErrors = {};
@@ -28,103 +46,213 @@ export default function SignInScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   }
 
-  async function signIn() {
+  async function handleSignIn() {
     if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await signInWithEmail(email, password);
 
-      if (error) throw error;
-      // If successful, the user will be navigated automatically by our auth state change listener
+      if (error) {
+        // Check if it's because email isn't verified
+        if (error.message.includes('Email not confirmed')) {
+          // Offer to resend verification email
+          Alert.alert(
+            'Email not verified',
+            'Please verify your email before signing in. Would you like to resend the verification email?',
+            [
+              { 
+                text: 'Cancel', 
+                style: 'cancel' 
+              },
+              { 
+                text: 'Resend', 
+                onPress: async () => {
+                  try {
+                    const { error } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email,
+                    });
+                    
+                    if (error) throw error;
+                    
+                    navigation.navigate('VerificationPending', { email });
+                  } catch (resendError) {
+                    Alert.alert('Error', resendError.message);
+                  }
+                } 
+              }
+            ]
+          );
+        } else {
+          throw error;
+        }
+        return;
+      }
+      
+      // If successful, the auth state listener in AuthContext will handle navigation
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
   }
+  
+  async function handleGoogleSignIn() {
+    try {
+      setGoogleLoading(true);
+      const { error } = await signInWithGoogle();
+      
+      if (error) throw error;
+      // Auth state listener will handle navigation on success
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign In</Text>
-      
-      <Input
-        label="Email"
-        value={email}
-        onChangeText={(text) => {
-          setEmail(text);
-          if (errors.email) {
-            setErrors({ ...errors, email: undefined });
-          }
-        }}
-        placeholder="Enter your email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        error={errors.email}
-      />
-      
-      <Input
-        label="Password"
-        value={password}
-        onChangeText={(text) => {
-          setPassword(text);
-          if (errors.password) {
-            setErrors({ ...errors, password: undefined });
-          }
-        }}
-        placeholder="Enter your password"
-        secureTextEntry
-        error={errors.password}
-      />
-      
-      <Button
-        title="Sign In"
-        onPress={signIn}
-        loading={loading}
-        variant="primary"
-        fullWidth
-        style={styles.button}
-      />
-      
-      <TouchableOpacity 
-        style={styles.signUpLink}
-        onPress={() => navigation.navigate('SignUp')}
-      >
-        <Text style={styles.signUpText}>
-          Don't have an account? Sign Up
-        </Text>
-      </TouchableOpacity>
-    </View>
+    <ImageBackground 
+      source={require('../../assets/login.png')} 
+      style={styles.backgroundImage}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Sign In</Text>
+          
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (errors.email) {
+                setErrors({ ...errors, email: undefined });
+              }
+            }}
+            placeholder="Enter your email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            error={errors.email}
+          />
+          
+          <Input
+            label="Password"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (errors.password) {
+                setErrors({ ...errors, password: undefined });
+              }
+            }}
+            placeholder="Enter your password"
+            secureTextEntry
+            error={errors.password}
+          />
+          
+          <Button
+            title="Sign In"
+            onPress={handleSignIn}
+            loading={loading}
+            variant="primary"
+            fullWidth
+            style={styles.button}
+          />
+          
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+          
+          <Button
+            title="Sign in with Google"
+            onPress={handleGoogleSignIn}
+            loading={googleLoading}
+            variant="outline"
+            fullWidth
+            style={styles.googleButton}
+            icon={() => (
+              <Image 
+                source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }} 
+                style={styles.googleIcon} 
+              />
+            )}
+          />
+          
+          <TouchableOpacity 
+            style={styles.signUpLink}
+            onPress={() => navigation.navigate('SignUp')}
+          >
+            <Text style={styles.signUpText}>
+              Don't have an account? Sign Up
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent overlay
+  },
   container: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: 'white',
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#1f2937', // gray-800
+    color: '#FFFFFF',
   },
   button: {
     marginTop: 8,
+    backgroundColor: COLORS.primary,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  dividerText: {
+    marginHorizontal: 8,
+    color: '#FFFFFF',
+    fontSize: 12,
+  },
+  googleButton: {
+    marginTop: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'transparent',
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
   },
   signUpLink: {
     marginTop: 16,
   },
   signUpText: {
-    color: '#3b82f6', // blue-500
+    color: '#FFFFFF',
     textAlign: 'center',
+    fontWeight: 'bold',
   },
 });

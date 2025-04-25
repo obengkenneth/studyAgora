@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 import ENV from '../config/env';
 
 // Get Supabase credentials from our environment config
@@ -26,6 +29,104 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   }
 });
+
+// Sign in with email and password
+export async function signInWithEmail(email, password) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error signing in:', error.message);
+    return { data: null, error };
+  }
+}
+
+// Sign up with email and password
+export async function signUpWithEmail(email, password, fullName = '') {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        }
+      }
+    });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error signing up:', error.message);
+    return { data: null, error };
+  }
+}
+
+// Sign in with Google
+export async function signInWithGoogle() {
+  try {
+    // Get the redirect URL
+    const redirectUrl = AuthSession.makeRedirectUri({ 
+      path: 'auth/callback',
+    });
+    
+    console.log("Redirect URL:", redirectUrl);
+    
+    // Create sign in URL
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: true,
+      },
+    });
+    
+    if (error) throw error;
+    
+    // Open the browser for authentication
+    const result = await WebBrowser.openAuthSessionAsync(
+      data && data.url ? data.url : '',
+      redirectUrl
+    );
+    
+    if (result?.type === 'success') {
+      // Extract auth code from URL
+      const url = result.url;
+      const params = new URL(url).searchParams;
+      const code = params.get('code');
+      
+      if (code) {
+        // Exchange code for session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        
+        if (error) throw error;
+        return { data, error: null };
+      }
+    }
+    
+    return { data: null, error: new Error('Google sign in was cancelled or failed') };
+  } catch (error) {
+    console.error('Error signing in with Google:', error.message);
+    return { data: null, error };
+  }
+}
+
+// Sign out user
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Error signing out:', error.message);
+    return { error };
+  }
+}
 
 // Example function to check if Supabase connection is working
 export async function testSupabaseConnection() {
