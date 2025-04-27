@@ -1,6 +1,19 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
+// App color scheme
+const COLORS = {
+  primary: '#4CAF50', // Green
+  primaryLight: '#81C784', // Light Green
+  secondary: '#D32F2F', // Red
+  secondaryLight: '#EF5350', // Light Red
+  accent: '#FFD700', // Gold
+  accentLight: '#FFEB3B', // Light Gold
+  text: '#1F2937',
+  lightText: '#6B7280',
+  background: '#FFFFFF',
+};
+
 export default function Button({ 
   title, 
   onPress, 
@@ -95,7 +108,7 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator 
-          color={variant === 'outline' ? '#3b82f6' : 'white'} 
+          color={variant === 'outline' ? COLORS.primary : 'white'} 
           size="small" 
         />
       ) : (
@@ -127,10 +140,10 @@ const styles = StyleSheet.create({
   },
   // Variant styles - Primary
   primaryButton: {
-    backgroundColor: '#3b82f6', // blue-500
+    backgroundColor: COLORS.primary, // Green
   },
   primaryButtonDisabled: {
-    backgroundColor: '#93c5fd', // blue-300
+    backgroundColor: COLORS.primaryLight, // Light Green
   },
   // Variant styles - Secondary
   secondaryButton: {
@@ -143,19 +156,19 @@ const styles = StyleSheet.create({
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#3b82f6', // blue-500
+    borderColor: COLORS.primary, // Green
   },
   outlineButtonDisabled: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#93c5fd', // blue-300
+    borderColor: COLORS.primaryLight, // Light Green
   },
   // Variant styles - Danger
   dangerButton: {
-    backgroundColor: '#ef4444', // red-500
+    backgroundColor: COLORS.secondary, // Red
   },
   dangerButtonDisabled: {
-    backgroundColor: '#fca5a5', // red-300
+    backgroundColor: COLORS.secondaryLight, // Light Red
   },
   // Text base styles
   text: {
@@ -183,10 +196,10 @@ const styles = StyleSheet.create({
     color: '#6b7280', // gray-500
   },
   outlineButtonText: {
-    color: '#3b82f6', // blue-500
+    color: COLORS.primary, // Green
   },
   outlineButtonTextDisabled: {
-    color: '#93c5fd', // blue-300
+    color: COLORS.primaryLight, // Light Green
   },
   dangerButtonText: {
     color: 'white',

@@ -28,7 +28,7 @@ export const COLORS = {
   success: '#4CAF50', // Same as primary (green)
   error: '#D32F2F', // Same as secondary (red)
   warning: '#FF9800', // Orange
-  info: '#2196F3', // Blue
+  info: '#FFD700', // Changed from blue to gold accent
   
   // UI element colors
   divider: '#E5E7EB', // Light gray for dividers

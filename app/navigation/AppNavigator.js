@@ -1,7 +1,8 @@
-import React from 'react';
-import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { UserCircle } from 'lucide-react-native';
 
 // Screens
 import SignInScreen from '../screens/SignInScreen';
@@ -10,6 +11,19 @@ import DashboardScreen from '../screens/DashboardScreen';
 import UserGroupScreen from '../screens/UserGroupScreen';
 import CurriculumSelectScreen from '../screens/CurriculumSelectScreen';
 import VerificationPendingScreen from '../screens/VerificationPendingScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import SupportScreen from '../screens/SupportScreen';
+import CoursesScreen from '../screens/CoursesScreen';
+import CourseDetailsScreen from '../screens/CourseDetailsScreen';
+import AllRecordingsScreen from '../screens/AllRecordingsScreen';
+import RecordingPlayerScreen from '../screens/RecordingPlayerScreen';
+import SessionsScreen from '../screens/SessionsScreen';
+import LiveSessionScreen from '../screens/LiveSessionScreen';
+import LiveSessionsListScreen from '../screens/LiveSessionsListScreen';
+import AllSessionsScreen from '../screens/AllSessionsScreen';
 
 // Auth Context
 import { useAuth } from './AuthContext';
@@ -69,8 +83,31 @@ function AppNavigator() {
       <AppStack.Screen 
         name="Dashboard" 
         component={DashboardScreen} 
-        options={{
+        options={({ navigation }) => ({
           title: 'Study Agora',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerRight: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Profile')}
+              style={{ marginRight: 15 }}
+            >
+              <UserCircle size={28} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <AppStack.Screen 
+        name="Sessions" 
+        component={SessionsScreen}
+        options={{
+          headerShown: true,
+          title: 'Sessions',
           headerStyle: {
             backgroundColor: COLORS.primary,
           },
@@ -80,7 +117,176 @@ function AppNavigator() {
           },
         }}
       />
-      {/* Additional screens will be added here as we develop them */}
+      <AppStack.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          headerShown: true,
+          title: 'My Profile',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="RecordingPlayer" 
+        component={RecordingPlayerScreen}
+        options={{
+          headerShown: true,
+          title: 'Recording',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="LiveSession" 
+        component={LiveSessionScreen}
+        options={{ headerShown: false }}
+      />
+      <AppStack.Screen 
+        name="LiveSessionsList" 
+        component={LiveSessionsListScreen}
+        options={{
+          headerShown: true,
+          title: 'Live Sessions',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="AllSessions" 
+        component={AllSessionsScreen}
+        options={{
+          headerShown: true,
+          title: 'All Sessions',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="AllRecordings" 
+        component={AllRecordingsScreen}
+        options={{
+          headerShown: true,
+          title: 'Recordings',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{
+          headerShown: true,
+          title: 'Notifications',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="PaymentMethods" 
+        component={PaymentMethodsScreen}
+        options={{
+          headerShown: true,
+          title: 'Payment Methods',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          headerShown: true,
+          title: 'Settings',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="Support" 
+        component={SupportScreen}
+        options={{
+          headerShown: true,
+          title: 'Support',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="Courses" 
+        component={CoursesScreen}
+        options={{
+          headerShown: true,
+          title: 'Courses',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="CourseDetails" 
+        component={CourseDetailsScreen}
+        options={{
+          headerShown: true,
+          title: 'Course Details',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
     </AppStack.Navigator>
   );
 }
@@ -102,12 +308,15 @@ export default function Navigation() {
     }
   }
   
-  console.log('Navigation state:', { 
-    userState: user ? 'Logged in' : 'Not logged in', 
-    profileState: userProfile ? 'Has profile' : 'No profile',
-    onboardingNeeded: userProfile && (!userProfile.user_group || !userProfile.curriculum),
-    selectedStack: initialRouteName
-  });
+  // Log navigation state changes
+  useEffect(() => {
+    console.log('Navigation state:', { 
+      userState: user ? 'Logged in' : 'Not logged in', 
+      profileState: userProfile ? 'Has profile' : 'No profile',
+      onboardingNeeded: userProfile && (!userProfile.user_group || !userProfile.curriculum),
+      selectedStack: initialRouteName
+    });
+  }, [user, userProfile, initialRouteName]);
   
   // Show a loading indicator while checking auth state
   if (loading) {
@@ -124,6 +333,7 @@ export default function Navigation() {
       <RootStack.Navigator 
         screenOptions={{ headerShown: false }}
         initialRouteName={initialRouteName}
+        key={`${initialRouteName}-${user?.id || 'no-user'}`} // Force re-mounting when user changes
       >
         <RootStack.Screen name="Auth" component={AuthNavigator} />
         <RootStack.Screen name="Onboarding" component={OnboardingNavigator} />
@@ -141,8 +351,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   loadingText: {
-    marginTop: 10,
-    color: COLORS.primary,
+    marginTop: 12,
     fontSize: 16,
-  },
+    color: COLORS.lightText,
+  }
 }); 

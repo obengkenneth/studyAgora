@@ -1,225 +1,225 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import { useAuth } from '../navigation/AuthContext';
+import Button from '../components/Button';
 import { supabase } from '../services/supabase';
+import { Book, Clock, Users2, Home, GraduationCap, Library } from 'lucide-react-native';
+
+// App color scheme
+const COLORS = {
+  primary: '#4CAF50', // Green
+  secondary: '#D32F2F', // Red
+  accent: '#FFD700', // Gold
+  text: '#1F2937',
+  lightText: '#6B7280',
+  background: '#FFFFFF',
+};
 
 export default function DashboardScreen({ navigation }) {
-  async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+  const { userProfile } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Auth' }],
+      });
+    } catch (error) {
       console.error('Error signing out:', error.message);
     }
-  }
+  };
 
   return (
-    <ScrollView style={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Dashboard</Text>
-        
-        {/* Learning Modules Section */}
+    <View style={styles.mainContainer}>
+      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        {/* Trending Topics Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Learning Modules</Text>
-          
-          <View style={styles.cardRow}>
-            {/* Live Sessions Card */}
-            <TouchableOpacity 
-              style={[styles.card, styles.halfCard]}
-              onPress={() => navigation.navigate('LiveSessions')}
-            >
-              <View style={[styles.cardIcon, styles.blueIcon]}>
-                <Text style={styles.iconText}>LIVE</Text>
+          <Text style={styles.sectionTitle}>Trending Topics</Text>
+          <TouchableOpacity style={styles.trendingCard}>
+            <View style={styles.trendingIconContainer}>
+              <Book size={24} color={COLORS.primary} />
+            </View>
+            <View style={styles.trendingContent}>
+              <Text style={styles.trendingTitle}>WAEC Math Crash Course</Text>
+              <View style={styles.trendingMeta}>
+                <View style={styles.metaItem}>
+                  <Clock size={16} color={COLORS.lightText} />
+                  <Text style={styles.metaText}>5 weeks</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Users2 size={16} color={COLORS.lightText} />
+                  <Text style={styles.metaText}>24 students</Text>
+                </View>
               </View>
-              <Text style={styles.cardTitle}>Live Sessions</Text>
-              <Text style={styles.cardDescription}>Join interactive learning sessions</Text>
-            </TouchableOpacity>
-            
-            {/* Recorded Sessions Card */}
-            <TouchableOpacity 
-              style={[styles.card, styles.halfCard]}
-              onPress={() => navigation.navigate('RecordedSessions')}
-            >
-              <View style={[styles.cardIcon, styles.purpleIcon]}>
-                <Text style={styles.purpleIconText}>VIDEO</Text>
-              </View>
-              <Text style={styles.cardTitle}>Recorded Sessions</Text>
-              <Text style={styles.cardDescription}>Watch pre-recorded lessons</Text>
-            </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Upcoming Sessions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Upcoming Sessions</Text>
+          <View style={styles.sessionCard}>
+            <Text style={styles.sessionTime}>Today, 2:00 PM</Text>
+            <Text style={styles.sessionTitle}>English Language</Text>
+            <Text style={styles.sessionTeacher}>with Mr. Johnson</Text>
+            <Button
+              title="Join Session"
+              onPress={() => navigation.navigate('LiveSession', { sessionId: 'algebra-session' })}
+              variant="primary"
+              style={styles.joinButton}
+            />
           </View>
         </View>
-        
-        {/* Resources Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Study Resources</Text>
-          
-          <TouchableOpacity 
-            style={styles.card}
-            onPress={() => navigation.navigate('Resources')}
-          >
-            <View style={styles.horizontalCard}>
-              <View style={[styles.squareIcon, styles.greenIcon]}>
-                <Text style={styles.greenIconText}>DOCS</Text>
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Resource Library</Text>
-                <Text style={styles.cardDescription}>
-                  Access study materials, practice questions, and textbooks
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Account Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          
-          <TouchableOpacity 
-            style={styles.card}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <View style={styles.horizontalCard}>
-              <View style={[styles.squareIcon, styles.yellowIcon]}>
-                <Text style={styles.yellowIconText}>PROFILE</Text>
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>My Profile</Text>
-                <Text style={styles.cardDescription}>
-                  Manage your account settings and preferences
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.card, styles.redCard]}
-            onPress={signOut}
-          >
-            <View style={styles.horizontalCard}>
-              <View style={[styles.squareIcon, styles.redIcon]}>
-                <Text style={styles.redIconText}>EXIT</Text>
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Sign Out</Text>
-                <Text style={styles.cardDescription}>
-                  Log out of your account
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem}>
+          <Home size={24} color={COLORS.primary} />
+          <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Courses')}
+        >
+          <Book size={24} color={COLORS.lightText} />
+          <Text style={styles.navText}>Courses</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Sessions')}
+        >
+          <GraduationCap size={24} color={COLORS.lightText} />
+          <Text style={styles.navText}>Sessions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Library size={24} color={COLORS.lightText} />
+          <Text style={styles.navText}>Library</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
   scrollContainer: {
     flex: 1,
-    backgroundColor: '#f9fafb', // gray-50
   },
-  container: {
-    padding: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937', // gray-800
-    marginBottom: 24,
+  scrollContent: {
+    padding: 20,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937', // gray-800
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
     marginBottom: 16,
   },
-  cardRow: {
+  trendingCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  card: {
+  trendingIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#ecfdf5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  trendingContent: {
+    flex: 1,
+  },
+  trendingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  trendingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  metaText: {
+    marginLeft: 4,
+    color: '#6b7280',
+    fontSize: 14,
+  },
+  sessionCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
+  },
+  sessionTime: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  sessionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  sessionTeacher: {
+    color: '#6b7280',
+    fontSize: 14,
     marginBottom: 16,
   },
-  halfCard: {
-    width: '48%',
+  joinButton: {
+    marginTop: 8,
+    backgroundColor: COLORS.primary,
   },
-  cardIcon: {
-    height: 96,
-    borderRadius: 8,
-    marginBottom: 8,
+  bottomNav: {
+    height: 60,
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingBottom: 8,
   },
-  blueIcon: {
-    backgroundColor: '#dbeafe', // blue-100
+  navItem: {
+    alignItems: 'center',
   },
-  purpleIcon: {
-    backgroundColor: '#f3e8ff', // purple-100
-  },
-  greenIcon: {
-    backgroundColor: '#dcfce7', // green-100
-  },
-  yellowIcon: {
-    backgroundColor: '#fef9c3', // yellow-100
-  },
-  redIcon: {
-    backgroundColor: '#fee2e2', // red-100
-  },
-  iconText: {
-    fontWeight: 'bold',
-    color: '#3b82f6', // blue-500
-  },
-  purpleIconText: {
-    fontWeight: 'bold',
-    color: '#a855f7', // purple-500
-  },
-  greenIconText: {
-    fontWeight: 'bold',
-    color: '#22c55e', // green-500
-  },
-  yellowIconText: {
-    fontWeight: 'bold',
-    color: '#eab308', // yellow-500
-  },
-  redIconText: {
-    fontWeight: 'bold',
-    color: '#ef4444', // red-500
-  },
-  cardTitle: {
-    fontWeight: 'bold',
-    color: '#1f2937', // gray-800
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#6b7280', // gray-600
+  navText: {
+    fontSize: 12,
+    color: '#6b7280',
     marginTop: 4,
   },
-  horizontalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  squareIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  redCard: {
-    backgroundColor: '#fff1f2', // red-50
+  activeNavText: {
+    color: COLORS.primary,
+    fontWeight: '500',
   },
 }); 

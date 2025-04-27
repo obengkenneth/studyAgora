@@ -196,8 +196,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   selectedOption: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
   },
   optionTitle: {
     fontSize: 18,
