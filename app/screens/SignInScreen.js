@@ -56,11 +56,15 @@ export default function SignInScreen({ route, navigation }) {
       const { data, error } = await signInWithEmail(email, password);
 
       if (error) {
-        // Remove email verification check and just throw the error
         throw error;
       }
       
-      // If successful, the auth state listener in AuthContext will handle navigation
+      console.log('Login successful, explicitly navigating to App');
+      // Explicitly navigate to the App screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'App' }],
+      });
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {
@@ -74,7 +78,13 @@ export default function SignInScreen({ route, navigation }) {
       const { error } = await signInWithGoogle();
       
       if (error) throw error;
-      // Auth state listener will handle navigation on success
+      
+      console.log('Google login successful, explicitly navigating to App');
+      // Explicitly navigate to the App screen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'App' }],
+      });
     } catch (error) {
       Alert.alert('Error', error.message);
     } finally {

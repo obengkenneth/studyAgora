@@ -297,6 +297,7 @@ export default function Navigation() {
   // Force refresh user profile when mounting
   useEffect(() => {
     if (user && !userProfile) {
+      console.log('Navigation: User exists but no profile, refreshing profile');
       refreshProfile();
     }
   }, [user, userProfile, refreshProfile]);
@@ -305,14 +306,20 @@ export default function Navigation() {
   let initialRouteName = "Auth";
   
   if (user) {
+    console.log('Navigation: User is authenticated:', user.id);
     if (userProfile) {
+      console.log('Navigation: User profile exists:', userProfile.user_group);
       // Check if onboarding is needed
       const needsOnboarding = !userProfile.user_group || !userProfile.curriculum;
       initialRouteName = needsOnboarding ? "Onboarding" : "App";
+      console.log('Navigation: Setting initialRouteName to', initialRouteName);
     } else {
       // User is logged in but no profile yet, start onboarding
+      console.log('Navigation: No user profile, starting onboarding');
       initialRouteName = "Onboarding";
     }
+  } else {
+    console.log('Navigation: No authenticated user, showing Auth screens');
   }
   
   // Log navigation state changes
