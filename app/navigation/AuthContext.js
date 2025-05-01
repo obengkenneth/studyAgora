@@ -9,6 +9,7 @@ const AuthContext = createContext({
   isVerified: false,
   pendingVerification: false,
   resendVerificationEmail: () => {},
+  refreshProfile: () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -45,6 +46,21 @@ export function AuthProvider({ children }) {
           // Allow users to proceed whether verified or not
           setIsVerified(true);
           await fetchUserProfile(session.user.id);
+          
+          // If we just created a user, force a profile refresh to get the user_group
+          if (event === 'SIGNED_UP' || event === 'SIGNED_IN') {
+            // Multiple refresh attempts to ensure profile is loaded
+            setTimeout(async () => {
+              console.log('First profile refresh after sign-up/sign-in');
+              await fetchUserProfile(session.user.id, true);
+              
+              // Try again after a longer delay
+              setTimeout(async () => {
+                console.log('Second profile refresh attempt');
+                await fetchUserProfile(session.user.id, true);
+              }, 2000);
+            }, 1000);
+          }
         } else {
           setUserProfile(null);
           setLoading(false);
@@ -65,7 +81,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
   
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, forceRefresh = false) => {
     try {
       console.log('Fetching user profile in AuthContext for ID:', userId);
       
@@ -83,12 +99,63 @@ export function AuthProvider({ children }) {
         console.log('User profile fetched in AuthContext:', data);
       }
       
+      // Store profile data in state
       setUserProfile(data || null);
+      
+      // If forcing refresh and no profile yet, try again after a short delay
+      if (forceRefresh && !data) {
+        console.log('No profile found, will retry after delay');
+        setTimeout(() => fetchUserProfile(userId), 2000);
+      }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      // Use a local variable for tracking refresh state
+      // instead of modifying the global loading state
+      // This prevents navigation changes during refresh
+      let localLoading = true;
+      
+      try {
+        console.log('refreshProfile: starting for user ID', user.id);
+        
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          if (error.code !== 'PGRST116') {
+            console.error('Error fetching user profile:', error.message);
+          }
+        } else {
+          console.log('refreshProfile: profile data retrieved', data);
+          // Update profile state only if different
+          if (JSON.stringify(data) !== JSON.stringify(userProfile)) {
+            setUserProfile(data || null);
+          }
+        }
+        
+        // If no data was found and we're forcing a refresh, try again after a short delay
+        if (!data) {
+          console.log('refreshProfile: No profile found, will retry after delay');
+          setTimeout(() => fetchUserProfile(user.id), 2000);
+        }
+      } catch (error) {
+        console.error('Error in refreshProfile:', error.message);
+      } finally {
+        localLoading = false;
+      }
+      
+      return { success: true };
+    }
+    return { success: false };
   };
 
   const resendVerificationEmail = async (email) => {
@@ -114,6 +181,7 @@ export function AuthProvider({ children }) {
     isVerified,
     pendingVerification,
     resendVerificationEmail,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

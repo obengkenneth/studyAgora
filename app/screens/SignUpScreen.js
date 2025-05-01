@@ -17,7 +17,7 @@ const COLORS = {
 };
 
 export default function SignUpScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -96,6 +96,10 @@ export default function SignUpScreen({ navigation }) {
           } else {
             console.log('Profile created successfully:', profileData);
           }
+          
+          // Force refresh to ensure profile data is loaded
+          await refreshProfile();
+          
         } catch (profileError) {
           console.error('Profile creation exception:', profileError);
         }
@@ -112,6 +116,11 @@ export default function SignUpScreen({ navigation }) {
             console.error('Error signing in after signup:', signInError);
           } else {
             console.log('Manual sign-in successful:', signInData ? 'Session created' : 'No session');
+            // Force a profile refresh after successful sign-in
+            setTimeout(() => {
+              console.log('Forcing profile refresh after sign-in');
+              refreshProfile();
+            }, 1000);
           }
         } catch (signInError) {
           console.error('Sign-in exception:', signInError);
@@ -150,6 +159,11 @@ export default function SignUpScreen({ navigation }) {
       const { error } = await signInWithGoogle();
       
       if (error) throw error;
+      // Force profile refresh after successful Google sign-in
+      setTimeout(() => {
+        console.log('Forcing profile refresh after Google sign-in');
+        refreshProfile();
+      }, 1000);
       // Auth state listener will handle navigation on success
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -178,6 +192,7 @@ export default function SignUpScreen({ navigation }) {
             }}
             placeholder="Enter your full name"
             error={errors.fullName}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Input
@@ -193,6 +208,7 @@ export default function SignUpScreen({ navigation }) {
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Input
@@ -207,6 +223,7 @@ export default function SignUpScreen({ navigation }) {
             placeholder="Create a password"
             secureTextEntry
             error={errors.password}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Input
@@ -221,6 +238,7 @@ export default function SignUpScreen({ navigation }) {
             placeholder="Confirm your password"
             secureTextEntry
             error={errors.confirmPassword}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Button

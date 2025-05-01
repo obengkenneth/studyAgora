@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../services/supabase';
 import { updateUserGroup, getUserProfile } from '../services/supabaseAdmin';
+import { GraduationCap, Users, BookOpen } from 'lucide-react-native';
 import Button from '../components/Button';
 import { useAuth } from '../navigation/AuthContext';
 
 const USER_GROUPS = [
-  { id: 'student', label: 'Student', description: 'Access study materials and join sessions' },
-  { id: 'parent', label: 'Parent', description: 'Monitor progress and manage enrollments' },
-  { id: 'facilitator', label: 'Facilitator', description: 'Create and manage learning content' },
+  { id: 'student', label: 'Student', icon: GraduationCap },
+  { id: 'parent', label: 'Parent', icon: Users },
+  { id: 'facilitator', label: 'Facilitator', icon: BookOpen },
 ];
 
 export default function UserGroupScreen({ navigation, route }) {
@@ -127,7 +128,7 @@ export default function UserGroupScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>I am a...</Text>
-      <Text style={styles.subtitle}>Select your role to personalize your experience</Text>
+      <Text style={styles.subtitle}>Select your role</Text>
       
       <View style={styles.optionsContainer}>
         {USER_GROUPS.map((group) => (
@@ -139,17 +140,15 @@ export default function UserGroupScreen({ navigation, route }) {
             ]}
             onPress={() => setSelectedGroup(group.id)}
           >
+            <group.icon 
+              size={32} 
+              color={selectedGroup === group.id ? 'white' : COLORS.primary} 
+            />
             <Text style={[
               styles.optionTitle,
               selectedGroup === group.id && styles.selectedOptionText
             ]}>
               {group.label}
-            </Text>
-            <Text style={[
-              styles.optionDescription,
-              selectedGroup === group.id && styles.selectedOptionText
-            ]}>
-              {group.description}
             </Text>
           </TouchableOpacity>
         ))}
@@ -234,10 +233,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
     color: '#1f2937',
-  },
-  optionDescription: {
-    fontSize: 14,
-    color: '#6b7280',
   },
   selectedOptionText: {
     color: 'white',

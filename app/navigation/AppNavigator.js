@@ -292,7 +292,14 @@ function AppNavigator() {
 }
 
 export default function Navigation() {
-  const { user, loading, userProfile } = useAuth();
+  const { user, loading, userProfile, refreshProfile } = useAuth();
+  
+  // Force refresh user profile when mounting
+  useEffect(() => {
+    if (user && !userProfile) {
+      refreshProfile();
+    }
+  }, [user, userProfile, refreshProfile]);
   
   // Determine which navigator to show
   let initialRouteName = "Auth";
@@ -310,12 +317,12 @@ export default function Navigation() {
   
   // Log navigation state changes
   useEffect(() => {
-    console.log('Navigation state:', { 
-      userState: user ? 'Logged in' : 'Not logged in', 
-      profileState: userProfile ? 'Has profile' : 'No profile',
-      onboardingNeeded: userProfile && (!userProfile.user_group || !userProfile.curriculum),
-      selectedStack: initialRouteName
-    });
+  console.log('Navigation state:', { 
+    userState: user ? 'Logged in' : 'Not logged in', 
+    profileState: userProfile ? 'Has profile' : 'No profile',
+      onboardingNeeded: userProfile ? (!userProfile.user_group || !userProfile.curriculum) : true,
+    selectedStack: initialRouteName
+  });
   }, [user, userProfile, initialRouteName]);
   
   // Show a loading indicator while checking auth state
@@ -333,7 +340,6 @@ export default function Navigation() {
       <RootStack.Navigator 
         screenOptions={{ headerShown: false }}
         initialRouteName={initialRouteName}
-        key={`${initialRouteName}-${user?.id || 'no-user'}`} // Force re-mounting when user changes
       >
         <RootStack.Screen name="Auth" component={AuthNavigator} />
         <RootStack.Screen name="Onboarding" component={OnboardingNavigator} />

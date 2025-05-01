@@ -56,40 +56,8 @@ export default function SignInScreen({ route, navigation }) {
       const { data, error } = await signInWithEmail(email, password);
 
       if (error) {
-        // Check if it's because email isn't verified
-        if (error.message.includes('Email not confirmed')) {
-          // Offer to resend verification email
-          Alert.alert(
-            'Email not verified',
-            'Please verify your email before signing in. Would you like to resend the verification email?',
-            [
-              { 
-                text: 'Cancel', 
-                style: 'cancel' 
-              },
-              { 
-                text: 'Resend', 
-                onPress: async () => {
-                  try {
-                    const { error } = await supabase.auth.resend({
-                      type: 'signup',
-                      email: email,
-                    });
-                    
-                    if (error) throw error;
-                    
-                    navigation.navigate('VerificationPending', { email });
-                  } catch (resendError) {
-                    Alert.alert('Error', resendError.message);
-                  }
-                } 
-              }
-            ]
-          );
-        } else {
-          throw error;
-        }
-        return;
+        // Remove email verification check and just throw the error
+        throw error;
       }
       
       // If successful, the auth state listener in AuthContext will handle navigation
@@ -136,6 +104,7 @@ export default function SignInScreen({ route, navigation }) {
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Input
@@ -150,6 +119,7 @@ export default function SignInScreen({ route, navigation }) {
             placeholder="Enter your password"
             secureTextEntry
             error={errors.password}
+            labelStyle={{ color: '#FFFFFF' }}
           />
           
           <Button

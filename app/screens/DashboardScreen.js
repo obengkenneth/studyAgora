@@ -20,7 +20,7 @@ export default function DashboardScreen({ navigation }) {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
       navigation.reset({
@@ -42,23 +42,23 @@ export default function DashboardScreen({ navigation }) {
           <TouchableOpacity style={styles.trendingCard}>
             <View style={styles.trendingIconContainer}>
               <Book size={24} color={COLORS.primary} />
-            </View>
+              </View>
             <View style={styles.trendingContent}>
               <Text style={styles.trendingTitle}>WAEC Math Crash Course</Text>
               <View style={styles.trendingMeta}>
                 <View style={styles.metaItem}>
                   <Clock size={16} color={COLORS.lightText} />
                   <Text style={styles.metaText}>5 weeks</Text>
-                </View>
+              </View>
                 <View style={styles.metaItem}>
                   <Users2 size={16} color={COLORS.lightText} />
                   <Text style={styles.metaText}>24 students</Text>
-                </View>
+              </View>
               </View>
             </View>
           </TouchableOpacity>
         </View>
-
+        
         {/* Upcoming Sessions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Sessions</Text>
@@ -72,8 +72,8 @@ export default function DashboardScreen({ navigation }) {
               variant="primary"
               style={styles.joinButton}
             />
-          </View>
-        </View>
+              </View>
+            </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -88,8 +88,8 @@ export default function DashboardScreen({ navigation }) {
         >
           <Book size={24} color={COLORS.lightText} />
           <Text style={styles.navText}>Courses</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
+          </TouchableOpacity>
+          <TouchableOpacity 
           style={styles.navItem}
           onPress={() => navigation.navigate('Sessions')}
         >
@@ -99,9 +99,9 @@ export default function DashboardScreen({ navigation }) {
         <TouchableOpacity style={styles.navItem}>
           <Library size={24} color={COLORS.lightText} />
           <Text style={styles.navText}>Library</Text>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
   );
 }
 

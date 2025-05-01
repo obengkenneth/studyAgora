@@ -1,5 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { Clock, Users2, Edit2, Trash2, ArrowLeft } from 'lucide-react-native';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../navigation/AuthContext';
 import Button from '../components/Button';
 
 // App color scheme
@@ -13,83 +16,310 @@ const COLORS = {
 };
 
 export default function CourseDetailsScreen({ route, navigation }) {
-  const { courseId } = route.params || {};
+  const { courseId } = route.params;
+  const { userProfile } = useAuth();
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editCourse, setEditCourse] = useState({
+    title: '',
+    duration: '',
+    curriculum: '',
+  });
+  
+  // Check if user is the course creator
+  const isCreator = userProfile?.user_id === course?.created_by;
+  const isFacilitator = userProfile?.user_group === 'facilitator';
 
-  // In a real app, you would fetch course details based on courseId
-  // For now, we're using sample data
-  const courseDetails = {
-    id: courseId || 'unknown',
-    title: getCourseTitle(courseId),
-    description: 'This comprehensive course is designed to help students master the fundamentals and advanced concepts required for success in their exams.',
-    duration: '12 weeks',
-    schedule: 'Tuesdays and Thursdays, 4:00 PM - 6:00 PM',
-    instructor: 'Dr. Sarah Johnson',
-    price: '$299',
-    startDate: 'January 15, 2023',
-    curriculum: [
-      'Introduction to core concepts',
-      'Problem-solving techniques',
-      'Advanced theories and applications',
-      'Exam preparation strategies',
-      'Practice tests and feedback',
-    ],
+  useEffect(() => {
+    fetchCourseDetails();
+  }, [courseId]);
+
+  const fetchCourseDetails = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', courseId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setCourse(data);
+      setEditCourse({
+        title: data.title,
+        duration: data.duration,
+        curriculum: data.curriculum,
+      });
+    } catch (error) {
+      console.error('Error fetching course details:', error.message);
+      Alert.alert('Error', 'Failed to load course details. Please try again later.');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
   };
 
-  function getCourseTitle(id) {
-    if (!id) return 'Course Details';
+  const handleUpdateCourse = async () => {
+    if (!editCourse.title.trim()) {
+      Alert.alert('Error', 'Please enter a course title');
+      return;
+    }
 
-    const courseMap = {
-      'igcse-math': 'IGCSE Mathematics',
-      'sat-math-english': 'SAT Math & English',
-      'ielts-prep': 'IELTS Preparation',
-    };
+    if (!editCourse.duration.trim()) {
+      Alert.alert('Error', 'Please enter a course duration');
+      return;
+    }
 
-    return courseMap[id] || 'Course Details';
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('courses')
+        .update({
+          title: editCourse.title,
+          duration: editCourse.duration,
+          curriculum: editCourse.curriculum,
+          updated_at: new Date(),
+        })
+        .eq('id', courseId)
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      setCourse({
+        ...course,
+        title: editCourse.title,
+        duration: editCourse.duration,
+        curriculum: editCourse.curriculum,
+      });
+      
+      setModalVisible(false);
+      Alert.alert('Success', 'Course updated successfully!');
+    } catch (error) {
+      console.error('Error updating course:', error.message);
+      Alert.alert('Error', 'Failed to update course. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    Alert.alert(
+      'Delete Course',
+      'Are you sure you want to delete this course? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              
+              const { error } = await supabase
+                .from('courses')
+                .delete()
+                .eq('id', courseId);
+
+              if (error) {
+                throw error;
+              }
+
+              Alert.alert('Success', 'Course deleted successfully!');
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error deleting course:', error.message);
+              Alert.alert('Error', 'Failed to delete course. Please try again.');
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading && !course) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading course details...</Text>
+      </View>
+    );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{courseDetails.title}</Text>
-        <Text style={styles.instructor}>Instructor: {courseDetails.instructor}</Text>
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{courseDetails.description}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Schedule</Text>
-          <Text style={styles.detailText}>Duration: {courseDetails.duration}</Text>
-          <Text style={styles.detailText}>Classes: {courseDetails.schedule}</Text>
-          <Text style={styles.detailText}>Start Date: {courseDetails.startDate}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Curriculum</Text>
-          {courseDetails.curriculum.map((item, index) => (
-            <Text key={index} style={styles.curriculumItem}>• {item}</Text>
-          ))}
-        </View>
-
-        <View style={styles.priceContainer}>
-          <Text style={styles.price}>{courseDetails.price}</Text>
-          <Button 
-            title="Enroll Now" 
-            variant="primary" 
-            onPress={() => alert('Enrollment process will be implemented here')}
-            style={styles.enrollButton}
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {course?.image && (
+          <Image 
+            source={{ uri: course.image }} 
+            style={styles.courseImage}
+            resizeMode="cover"
           />
+        )}
+        
+        <View style={styles.content}>
+          <Text style={styles.title}>{course?.title}</Text>
+          
+          <View style={styles.metaContainer}>
+            <View style={styles.metaItem}>
+              <Clock size={18} color={COLORS.lightText} />
+              <Text style={styles.metaText}>{course?.duration}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Users2 size={18} color={COLORS.lightText} />
+              <Text style={styles.metaText}>{course?.students || 0} students</Text>
+            </View>
+          </View>
+          
+          <View style={styles.curriculumBadge}>
+            <Text style={styles.curriculumText}>
+              {course?.curriculum?.toUpperCase()}
+            </Text>
+          </View>
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About this course</Text>
+            <Text style={styles.sectionText}>
+              {course?.description || 
+                `This is a ${course?.curriculum?.toUpperCase()} course designed to help students master key concepts and prepare for exams. The course duration is ${course?.duration}.`}
+            </Text>
+          </View>
+          
+          {/* More sections can be added here */}
+          
+          {/* Edit and Delete buttons for course creators */}
+          {isFacilitator && isCreator && (
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.editButton]} 
+                onPress={() => setModalVisible(true)}
+              >
+                <Edit2 size={18} color={COLORS.primary} />
+                <Text style={styles.actionButtonText}>Edit Course</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.deleteButton]} 
+                onPress={handleDeleteCourse}
+              >
+                <Trash2 size={18} color={COLORS.secondary} />
+                <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+      
+      {/* Course Edit Modal */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Edit Course</Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Course Title</Text>
+              <TextInput
+                style={styles.input}
+                value={editCourse.title}
+                onChangeText={(text) => setEditCourse({ ...editCourse, title: text })}
+                placeholder="Enter course title"
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Duration</Text>
+              <TextInput
+                style={styles.input}
+                value={editCourse.duration}
+                onChangeText={(text) => setEditCourse({ ...editCourse, duration: text })}
+                placeholder="e.g., 8 weeks"
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Curriculum</Text>
+              <View style={styles.curriculumButtons}>
+                {['cambridge', 'sat', 'ielts'].map(curriculum => (
+                  <TouchableOpacity
+                    key={curriculum}
+                    style={[
+                      styles.curriculumButton,
+                      editCourse.curriculum === curriculum && styles.selectedCurriculum
+                    ]}
+                    onPress={() => setEditCourse({ ...editCourse, curriculum })}
+                  >
+                    <Text 
+                      style={[
+                        styles.curriculumButtonText,
+                        editCourse.curriculum === curriculum && styles.selectedCurriculumText
+                      ]}
+                    >
+                      {curriculum.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                onPress={() => setModalVisible(false)}
+                variant="outline"
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title="Update Course"
+                onPress={handleUpdateCourse}
+                variant="primary"
+                loading={loading}
+                style={{ flex: 1, marginLeft: 8 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  courseImage: {
+    width: '100%',
+    height: 250,
   },
   content: {
     padding: 20,
@@ -98,12 +328,33 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  instructor: {
-    fontSize: 16,
+  metaContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 24,
+  },
+  metaText: {
+    marginLeft: 8,
     color: COLORS.lightText,
-    marginBottom: 20,
+    fontSize: 16,
+  },
+  curriculumBadge: {
+    backgroundColor: COLORS.primary + '20', // 20% opacity
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginBottom: 24,
+  },
+  curriculumText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
   section: {
     marginBottom: 24,
@@ -114,38 +365,103 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
   },
-  description: {
+  sectionText: {
     fontSize: 16,
     lineHeight: 24,
     color: COLORS.text,
   },
-  detailText: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: COLORS.text,
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
   },
-  curriculumItem: {
-    fontSize: 16,
-    marginBottom: 8,
-    paddingLeft: 8,
-    color: COLORS.text,
-  },
-  priceContainer: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 30,
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: 'center',
   },
-  price: {
-    fontSize: 24,
+  editButton: {
+    backgroundColor: COLORS.primary + '20', // 20% opacity
+    marginRight: 8,
+  },
+  deleteButton: {
+    backgroundColor: COLORS.secondary + '20', // 20% opacity
+    marginLeft: 8,
+  },
+  actionButtonText: {
+    marginLeft: 8,
     fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  deleteButtonText: {
+    color: COLORS.secondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
     color: COLORS.text,
   },
-  enrollButton: {
-    minWidth: 120,
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  curriculumButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  curriculumButton: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  selectedCurriculum: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  curriculumButtonText: {
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  selectedCurriculumText: {
+    color: 'white',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
   },
 }); 

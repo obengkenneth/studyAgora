@@ -1,25 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../services/supabase';
 import { getUserProfile, updateCurriculum } from '../services/supabaseAdmin';
+import { GraduationCap, BookOpen, Languages } from 'lucide-react-native';
 import Button from '../components/Button';
 import { useAuth } from '../navigation/AuthContext';
+
+const COLORS = {
+  primary: '#4CAF50', // Green
+  secondary: '#D32F2F', // Red
+  accent: '#FFD700', // Gold
+  text: '#1F2937',
+  lightText: '#6B7280',
+  background: '#FFFFFF',
+};
 
 const CURRICULUMS = [
   { 
     id: 'cambridge', 
     label: 'Cambridge', 
-    description: 'International General Certificate of Secondary Education (IGCSE) and A-Level programs' 
+    icon: GraduationCap
   },
   { 
     id: 'sat', 
     label: 'SAT', 
-    description: 'Scholastic Assessment Test for college admissions in the United States' 
+    icon: BookOpen
   },
   { 
     id: 'ielts', 
     label: 'IELTS', 
-    description: 'International English Language Testing System for study, work, and migration' 
+    icon: Languages
   }
 ];
 
@@ -109,7 +119,8 @@ export default function CurriculumSelectScreen({ navigation, route }) {
   if (initialLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <Text>Loading...</Text>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -118,7 +129,7 @@ export default function CurriculumSelectScreen({ navigation, route }) {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Select Your Curriculum</Text>
-        <Text style={styles.subtitle}>Choose the curriculum you're interested in</Text>
+        <Text style={styles.subtitle}>Choose your preferred program</Text>
         
         <View style={styles.optionsContainer}>
           {CURRICULUMS.map((curriculum) => (
@@ -130,17 +141,15 @@ export default function CurriculumSelectScreen({ navigation, route }) {
               ]}
               onPress={() => setSelectedCurriculum(curriculum.id)}
             >
+              <curriculum.icon
+                size={32}
+                color={selectedCurriculum === curriculum.id ? 'white' : COLORS.primary}
+              />
               <Text style={[
                 styles.optionTitle,
                 selectedCurriculum === curriculum.id && styles.selectedOptionText
               ]}>
                 {curriculum.label}
-              </Text>
-              <Text style={[
-                styles.optionDescription,
-                selectedCurriculum === curriculum.id && styles.selectedOptionText
-              ]}>
-                {curriculum.description}
               </Text>
             </TouchableOpacity>
           ))}
@@ -205,15 +214,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#1f2937',
   },
-  optionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#6b7280',
-  },
   selectedOptionText: {
     color: 'white',
   },
   button: {
     marginTop: 16,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
   },
 }); 
