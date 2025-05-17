@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { Clock, Users2, Edit2, Trash2, ArrowLeft } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator, Dimensions } from 'react-native';
+import { Clock, Users2, Edit2, Trash2, ArrowLeft, FileText, Book } from 'lucide-react-native';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../navigation/AuthContext';
 import Button from '../components/Button';
@@ -26,6 +26,35 @@ export default function CourseDetailsScreen({ route, navigation }) {
     duration: '',
     curriculum: '',
   });
+  
+  // Get screen width for responsive text
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
+  
+  useEffect(() => {
+    const dimensionsListener = Dimensions.addEventListener(
+      'change', 
+      ({ window }) => {
+        setScreenWidth(window.width);
+      }
+    );
+    
+    return () => dimensionsListener?.remove?.();
+  }, []);
+  
+  // Use abbreviated names on smaller screens
+  const getCurriculumDisplay = (curriculum) => {
+    if (screenWidth < 350) {
+      // Very small screens
+      const abbrs = {
+        cambridge: 'CAMB',
+        sat: 'SAT',
+        ielts: 'IELTS'
+      };
+      return abbrs[curriculum] || curriculum.toUpperCase();
+    } else {
+      return curriculum.toUpperCase();
+    }
+  };
   
   // Check if user is the course creator
   const isCreator = userProfile?.user_id === course?.created_by;
@@ -100,7 +129,15 @@ export default function CourseDetailsScreen({ route, navigation }) {
       });
       
       setModalVisible(false);
-      Alert.alert('Success', 'Course updated successfully!');
+      Alert.alert('Success', 'Course updated successfully!', [
+        { 
+          text: 'OK', 
+          onPress: () => {
+            // Navigate back to Courses screen to trigger refresh
+            navigation.navigate('Courses');
+          }
+        }
+      ]);
     } catch (error) {
       console.error('Error updating course:', error.message);
       Alert.alert('Error', 'Failed to update course. Please try again.');
@@ -134,8 +171,15 @@ export default function CourseDetailsScreen({ route, navigation }) {
                 throw error;
               }
 
-              Alert.alert('Success', 'Course deleted successfully!');
-              navigation.goBack();
+              Alert.alert('Success', 'Course deleted successfully!', [
+                { 
+                  text: 'OK', 
+                  onPress: () => {
+                    // Navigate back to Courses screen to trigger refresh
+                    navigation.navigate('Courses');
+                  }
+                }
+              ]);
             } catch (error) {
               console.error('Error deleting course:', error.message);
               Alert.alert('Error', 'Failed to delete course. Please try again.');
@@ -183,7 +227,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
           
           <View style={styles.curriculumBadge}>
             <Text style={styles.curriculumText}>
-              {course?.curriculum?.toUpperCase()}
+              {getCurriculumDisplay(course?.curriculum)}
             </Text>
           </View>
           
@@ -191,11 +235,21 @@ export default function CourseDetailsScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>About this course</Text>
             <Text style={styles.sectionText}>
               {course?.description || 
-                `This is a ${course?.curriculum?.toUpperCase()} course designed to help students master key concepts and prepare for exams. The course duration is ${course?.duration}.`}
+                `This is a ${getCurriculumDisplay(course?.curriculum)} course designed to help students master key concepts and prepare for exams. The course duration is ${course?.duration}.`}
             </Text>
           </View>
           
-          {/* More sections can be added here */}
+          {/* Course Content Button */}
+          <TouchableOpacity 
+            style={styles.contentButton}
+            onPress={() => navigation.navigate('CourseContent', { 
+              courseId: course.id,
+              courseTitle: course.title
+            })}
+          >
+            <Book size={20} color={COLORS.primary} />
+            <Text style={styles.contentButtonText}>View Course Content</Text>
+          </TouchableOpacity>
           
           {/* Edit and Delete buttons for course creators */}
           {isFacilitator && isCreator && (
@@ -268,8 +322,11 @@ export default function CourseDetailsScreen({ route, navigation }) {
                         styles.curriculumButtonText,
                         editCourse.curriculum === curriculum && styles.selectedCurriculumText
                       ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.7}
                     >
-                      {curriculum.toUpperCase()}
+                      {getCurriculumDisplay(curriculum)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -447,6 +504,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 4,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   selectedCurriculum: {
     backgroundColor: COLORS.primary,
@@ -455,6 +514,8 @@ const styles = StyleSheet.create({
   curriculumButtonText: {
     color: COLORS.text,
     fontWeight: '500',
+    fontSize: 13,
+    textAlign: 'center',
   },
   selectedCurriculumText: {
     color: 'white',
@@ -463,5 +524,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 24,
+  },
+  contentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '15',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 24,
+    justifyContent: 'center',
+  },
+  contentButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
 }); 

@@ -4,6 +4,7 @@ import { Clock, Users2, Plus } from 'lucide-react-native';
 import { useAuth } from '../navigation/AuthContext';
 import { supabase } from '../services/supabase';
 import Button from '../components/Button';
+import { useFocusEffect } from '@react-navigation/native';
 
 // App color scheme
 const COLORS = {
@@ -25,6 +26,8 @@ export default function CoursesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [profileRefreshing, setProfileRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Keep the form state separate from the component state to prevent rerenders
   const [newCourse, setNewCourse] = useState({
     title: '',
     duration: '',
@@ -34,6 +37,15 @@ export default function CoursesScreen({ navigation }) {
 
   // Check if user is a facilitator
   const isFacilitator = userProfile?.user_group === 'facilitator';
+
+  // Fetch courses when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('CoursesScreen focused, refreshing course data');
+      fetchCourses();
+      return () => {};
+    }, [])
+  );
 
   // Fetch courses first, then check profile status
   useEffect(() => {
@@ -51,6 +63,39 @@ export default function CoursesScreen({ navigation }) {
       }, 500);
     }
   }, []);
+
+  // Get curriculum display names based on screen width
+  const [screenWidth, setScreenWidth] = useState(0);
+  useEffect(() => {
+    // Get initial screen dimensions
+    const { width } = require('react-native').Dimensions.get('window');
+    setScreenWidth(width);
+    
+    // Listen for dimension changes
+    const dimensionsListener = require('react-native').Dimensions.addEventListener(
+      'change', 
+      ({ window }) => {
+        setScreenWidth(window.width);
+      }
+    );
+    
+    return () => dimensionsListener?.remove?.();
+  }, []);
+  
+  // Use abbreviated names on smaller screens
+  const getCurriculumDisplay = (curriculum) => {
+    if (screenWidth < 350) {
+      // Very small screens
+      const abbrs = {
+        cambridge: 'CAMB',
+        sat: 'SAT',
+        ielts: 'IELTS'
+      };
+      return abbrs[curriculum] || curriculum.toUpperCase();
+    } else {
+      return curriculum.toUpperCase();
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -173,7 +218,95 @@ export default function CoursesScreen({ navigation }) {
   );
 
   // Course creation modal
-  const CreateCourseModal = () => (
+  const CreateCourseModal = () => {
+    // Use local state for form inputs to prevent parent re-renders
+    const [localFormState, setLocalFormState] = useState({
+      title: newCourse.title,
+      duration: newCourse.duration,
+      curriculum: newCourse.curriculum,
+    });
+    
+    // Update parent state only when form is submitted
+    const handleSubmit = async () => {
+      // First update the parent state with local values
+      setNewCourse({
+        ...newCourse,
+        title: localFormState.title,
+        duration: localFormState.duration,
+        curriculum: localFormState.curriculum,
+      });
+      
+      // Then call the create function with the updated values
+      if (!localFormState.title.trim()) {
+        Alert.alert('Error', 'Please enter a course title');
+        return;
+      }
+
+      if (!localFormState.duration.trim()) {
+        Alert.alert('Error', 'Please enter a course duration');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Create new course in database
+        const { data, error } = await supabase
+          .from('courses')
+          .insert([
+            {
+              title: localFormState.title,
+              duration: localFormState.duration,
+              curriculum: localFormState.curriculum,
+              image: newCourse.image,
+              created_by: userProfile.user_id,
+              students: 0, // New course starts with 0 students
+            }
+          ])
+          .select();
+
+        if (error) {
+          throw error;
+        }
+
+        // Reset form and close modal
+        setLocalFormState({
+          title: '',
+          duration: '',
+          curriculum: 'cambridge',
+        });
+        setNewCourse({
+          ...newCourse,
+          title: '',
+          duration: '',
+          curriculum: 'cambridge',
+        });
+        setModalVisible(false);
+        
+        // Refresh courses list
+        fetchCourses();
+        
+        Alert.alert('Success', 'Course created successfully!');
+      } catch (error) {
+        console.error('Error creating course:', error.message);
+        Alert.alert('Error', 'Failed to create course. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Reset local state when modal is closed
+    useEffect(() => {
+      if (modalVisible) {
+        setLocalFormState({
+          title: newCourse.title,
+          duration: newCourse.duration,
+          curriculum: newCourse.curriculum,
+        });
+      }
+    }, [modalVisible]);
+    
+    return (
     <Modal
       visible={modalVisible}
       animationType="slide"
@@ -188,8 +321,8 @@ export default function CoursesScreen({ navigation }) {
             <Text style={styles.inputLabel}>Course Title</Text>
             <TextInput
               style={styles.input}
-              value={newCourse.title}
-              onChangeText={(text) => setNewCourse({ ...newCourse, title: text })}
+                value={localFormState.title}
+                onChangeText={(text) => setLocalFormState({...localFormState, title: text})}
               placeholder="Enter course title"
             />
           </View>
@@ -198,8 +331,8 @@ export default function CoursesScreen({ navigation }) {
             <Text style={styles.inputLabel}>Duration</Text>
             <TextInput
               style={styles.input}
-              value={newCourse.duration}
-              onChangeText={(text) => setNewCourse({ ...newCourse, duration: text })}
+                value={localFormState.duration}
+                onChangeText={(text) => setLocalFormState({...localFormState, duration: text})}
               placeholder="e.g., 8 weeks"
             />
           </View>
@@ -212,17 +345,20 @@ export default function CoursesScreen({ navigation }) {
                   key={curriculum}
                   style={[
                     styles.curriculumButton,
-                    newCourse.curriculum === curriculum && styles.selectedCurriculum
+                      localFormState.curriculum === curriculum && styles.selectedCurriculum
                   ]}
-                  onPress={() => setNewCourse({ ...newCourse, curriculum })}
+                    onPress={() => setLocalFormState({...localFormState, curriculum})}
                 >
                   <Text 
                     style={[
                       styles.curriculumButtonText,
-                      newCourse.curriculum === curriculum && styles.selectedCurriculumText
+                        localFormState.curriculum === curriculum && styles.selectedCurriculumText
                     ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.7}
                   >
-                    {curriculum.toUpperCase()}
+                      {getCurriculumDisplay(curriculum)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -238,7 +374,7 @@ export default function CoursesScreen({ navigation }) {
             />
             <Button
               title="Create Course"
-              onPress={handleCreateCourse}
+                onPress={handleSubmit}
               variant="primary"
               loading={loading}
               style={{ flex: 1, marginLeft: 8 }}
@@ -248,6 +384,7 @@ export default function CoursesScreen({ navigation }) {
       </View>
     </Modal>
   );
+  };
 
   return (
     <View style={styles.container}>
@@ -449,6 +586,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 4,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   selectedCurriculum: {
     backgroundColor: COLORS.primary,
@@ -457,6 +596,8 @@ const styles = StyleSheet.create({
   curriculumButtonText: {
     color: COLORS.text,
     fontWeight: '500',
+    fontSize: 13,
+    textAlign: 'center',
   },
   selectedCurriculumText: {
     color: 'white',

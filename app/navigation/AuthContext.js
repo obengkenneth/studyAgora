@@ -146,7 +146,7 @@ export function AuthProvider({ children }) {
         if (!data) {
           console.log('refreshProfile: No profile found, will retry after delay');
           setTimeout(() => fetchUserProfile(user.id), 2000);
-        }
+    }
       } catch (error) {
         console.error('Error in refreshProfile:', error.message);
       } finally {

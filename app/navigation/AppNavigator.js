@@ -24,6 +24,7 @@ import SessionsScreen from '../screens/SessionsScreen';
 import LiveSessionScreen from '../screens/LiveSessionScreen';
 import LiveSessionsListScreen from '../screens/LiveSessionsListScreen';
 import AllSessionsScreen from '../screens/AllSessionsScreen';
+import CourseContentScreen from '../screens/CourseContentScreen';
 
 // Auth Context
 import { useAuth } from './AuthContext';
@@ -278,6 +279,21 @@ function AppNavigator() {
         options={{
           headerShown: true,
           title: 'Course Details',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="CourseContent" 
+        component={CourseContentScreen}
+        options={{
+          headerShown: true,
+          title: 'Course Content',
           headerStyle: {
             backgroundColor: COLORS.primary,
           },

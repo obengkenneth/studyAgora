@@ -56,8 +56,8 @@ export default function SignInScreen({ route, navigation }) {
       const { data, error } = await signInWithEmail(email, password);
 
       if (error) {
-        throw error;
-      }
+          throw error;
+        }
       
       console.log('Login successful, explicitly navigating to App');
       // Explicitly navigate to the App screen
