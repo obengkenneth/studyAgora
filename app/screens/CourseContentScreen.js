@@ -54,11 +54,11 @@ const CONTENT_TYPES = [
 
 export default function CourseContentScreen({ route, navigation }) {
   const { courseId, courseTitle } = route.params;
-  const { userProfile } = useAuth();
+  const { session, userProfile } = useAuth(); // Get the session from AuthContext at component level
+  const [isCreator, setIsCreator] = useState(false);
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingContent, setEditingContent] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     content_type: 'text',
@@ -66,12 +66,12 @@ export default function CourseContentScreen({ route, navigation }) {
     description: '',
     is_published: true,
   });
-  const [uploading, setUploading] = useState(false);
+  const [editingContent, setEditingContent] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   // Track if the user is a facilitator and can edit this course
   const isFacilitator = userProfile?.user_group === 'facilitator';
-  const [isCreator, setIsCreator] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -271,34 +271,111 @@ export default function CourseContentScreen({ route, navigation }) {
   const uploadFile = async (courseId, fileInfo) => {
     try {
       const filePath = `${courseId}/${Date.now()}_${fileInfo.name}`;
-      const fileUri = fileInfo.uri;
-
-      // Read the file as a blob
-      const response = await fetch(fileUri);
-      const blob = await response.blob();
-
-      // Upload to Supabase Storage
-      const { data, error } = await supabase
-        .storage
-        .from('course-content')
-        .upload(filePath, blob, {
-          contentType: fileInfo.mimeType,
-          upsert: true,
-        });
-
-      if (error) throw error;
-
+      
+      // Determine content type explicitly for video files to ensure proper playback
+      let contentType = fileInfo.mimeType;
+      
+      // For video files, make sure we use a standard video MIME type
+      if (fileInfo.mimeType.startsWith('video/')) {
+        // Extract file extension
+        const extension = fileInfo.name.split('.').pop().toLowerCase();
+        
+        // Set explicit MIME types based on extension
+        switch (extension) {
+          case 'mp4':
+            contentType = 'video/mp4';
+            break;
+          case 'mov':
+            contentType = 'video/quicktime';
+            break;
+          case 'avi':
+            contentType = 'video/x-msvideo';
+            break;
+          case 'wmv':
+            contentType = 'video/x-ms-wmv';
+            break;
+          case 'webm':
+            contentType = 'video/webm';
+            break;
+          default:
+            // If we don't recognize the extension, keep the original
+            contentType = 'video/mp4'; // Default to mp4 for unknown video types
+            break;
+        }
+        
+        console.log(`Setting explicit video content type: ${contentType} for file: ${fileInfo.name}`);
+      }
+      
+      console.log(`Uploading file: ${fileInfo.name}, type: ${contentType}`);
+      
+      if (Platform.OS === 'web') {
+        // For web, use standard Blob approach
+        const response = await fetch(fileInfo.uri);
+        const blob = await response.blob();
+        
+        const { data, error } = await supabase
+          .storage
+          .from('course-content')
+          .upload(filePath, blob, {
+            contentType: contentType,
+            upsert: true,
+          });
+          
+        if (error) {
+          console.error('Supabase storage upload error:', error);
+          throw error;
+        }
+      } else {
+        // For React Native, use a DIRECT BINARY UPLOAD approach with signed URLs
+        // Step 1: Create a signed URL for upload
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('course-content')
+          .createSignedUploadUrl(filePath);
+        
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
+          throw signedUrlError;
+        }
+        
+        // Step 2: Use Expo's FileSystem.uploadAsync to do a direct binary upload to the signed URL
+        const uploadOptions = {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            'Content-Type': contentType
+          }
+        };
+        
+        const uploadResult = await FileSystem.uploadAsync(
+          signedUrlData.signedUrl, 
+          fileInfo.uri, 
+          uploadOptions
+        );
+        
+        if (uploadResult.status !== 200) {
+          console.error('Upload failed:', uploadResult);
+          throw new Error(`Upload failed with status ${uploadResult.status}`);
+        }
+        
+        console.log('File uploaded successfully via signed URL');
+      }
+      
+      // Log success
+      console.log(`File uploaded to path: ${filePath}`);
+      
       // Get the public URL for the file
       const { data: publicURLData } = supabase
         .storage
         .from('course-content')
         .getPublicUrl(filePath);
-
+        
+      console.log('File uploaded successfully:', publicURLData.publicUrl);
+      
       return {
         file_url: publicURLData.publicUrl,
         file_name: fileInfo.name,
         file_size: fileInfo.size,
-        file_type: fileInfo.mimeType,
+        file_type: contentType, // Store the explicit content type
       };
     } catch (error) {
       console.error('Error uploading file:', error);
