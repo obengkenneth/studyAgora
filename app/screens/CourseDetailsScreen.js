@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator, Dimensions } from 'react-native';
-import { Clock, Users2, Edit2, Trash2, ArrowLeft, FileText, Book } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, TextInput, ActivityIndicator, Dimensions, Platform } from 'react-native';
+import { Clock, Users2, Edit2, Trash2, ArrowLeft, FileText, Book, Image as ImageIcon } from 'lucide-react-native';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../navigation/AuthContext';
 import Button from '../components/Button';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 // App color scheme
 const COLORS = {
@@ -25,7 +27,10 @@ export default function CourseDetailsScreen({ route, navigation }) {
     title: '',
     duration: '',
     curriculum: '',
+    image: null
   });
+  const [thumbnailImage, setThumbnailImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // Get screen width for responsive text
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -110,7 +115,12 @@ export default function CourseDetailsScreen({ route, navigation }) {
         title: courseData.title,
         duration: courseData.duration,
         curriculum: curriculumName,
+        image: courseData.image || null
       });
+      
+      if (courseData.image) {
+        setThumbnailImage(courseData.image);
+      }
       
       console.log('Course loaded with curriculum:', curriculumName);
     } catch (error) {
@@ -119,6 +129,133 @@ export default function CourseDetailsScreen({ route, navigation }) {
       navigation.goBack();
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Pick image from device gallery
+  const pickImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your media library');
+        return;
+      }
+      
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedImage = result.assets[0];
+        setThumbnailImage(selectedImage.uri);
+        
+        // Get file info
+        const fileInfo = {
+          uri: selectedImage.uri,
+          name: selectedImage.fileName || `image-${Date.now()}.jpg`,
+          size: selectedImage.fileSize || 0,
+          mimeType: selectedImage.mimeType || 'image/jpeg',
+        };
+        
+        // Upload the image
+        await uploadThumbnail(fileInfo);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+  
+  // Upload thumbnail to Supabase
+  const uploadThumbnail = async (fileInfo) => {
+    try {
+      setUploadingImage(true);
+      
+      const filePath = `course-thumbnails/${courseId}/${Date.now()}_${fileInfo.name}`;
+      let contentType = fileInfo.mimeType || 'image/jpeg';
+      
+      console.log(`Uploading thumbnail: ${fileInfo.name}, type: ${contentType}`);
+      
+      if (Platform.OS === 'web') {
+        // For web, use standard Blob approach
+        const response = await fetch(fileInfo.uri);
+        const blob = await response.blob();
+        
+        const { data, error } = await supabase
+          .storage
+          .from('course-thumbnails')
+          .upload(filePath, blob, {
+            contentType: contentType,
+            upsert: true,
+          });
+          
+        if (error) {
+          console.error('Supabase storage upload error:', error);
+          throw error;
+        }
+      } else {
+        // For React Native, use direct binary upload approach with signed URLs
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('course-thumbnails')
+          .createSignedUploadUrl(filePath);
+        
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
+          throw signedUrlError;
+        }
+        
+        // Use Expo's FileSystem.uploadAsync for direct binary upload
+        const uploadOptions = {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            'Content-Type': contentType
+          }
+        };
+        
+        const uploadResult = await FileSystem.uploadAsync(
+          signedUrlData.signedUrl, 
+          fileInfo.uri, 
+          uploadOptions
+        );
+        
+        if (uploadResult.status !== 200) {
+          console.error('Upload failed:', uploadResult);
+          throw new Error(`Upload failed with status ${uploadResult.status}`);
+        }
+        
+        console.log('Thumbnail uploaded successfully via signed URL');
+      }
+      
+      // Get the public URL for the file
+      const { data: publicURLData } = supabase
+        .storage
+        .from('course-thumbnails')
+        .getPublicUrl(filePath);
+      
+      console.log('Thumbnail uploaded successfully:', publicURLData.publicUrl);
+      
+      // Update the editCourse state with the image URL
+      setEditCourse({
+        ...editCourse,
+        image: publicURLData.publicUrl
+      });
+      
+      return publicURLData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      Alert.alert('Error', 'Failed to upload thumbnail. Please try again.');
+      // Keep the existing image if there was one
+      setThumbnailImage(course?.image || null);
+      return null;
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -142,6 +279,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
           title: editCourse.title,
           duration: editCourse.duration,
           curriculum: editCourse.curriculum,
+          image: editCourse.image,  // Add the image URL to the update
           updated_at: new Date(),
         })
         .eq('id', courseId)
@@ -156,6 +294,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
         title: editCourse.title,
         duration: editCourse.duration,
         curriculum: editCourse.curriculum,
+        image: editCourse.image,
       });
       
       setModalVisible(false);
@@ -361,6 +500,40 @@ export default function CourseDetailsScreen({ route, navigation }) {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Course Thumbnail</Text>
+              
+              {thumbnailImage ? (
+                <View style={styles.thumbnailContainer}>
+                  <Image 
+                    source={{ uri: thumbnailImage }}
+                    style={styles.thumbnailPreview}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity 
+                    style={styles.changeThumbnailButton}
+                    onPress={pickImage}
+                    disabled={uploadingImage}
+                  >
+                    <Text style={styles.changeThumbnailText}>
+                      {uploadingImage ? 'Uploading...' : 'Change Thumbnail'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.thumbnailSelector}
+                  onPress={pickImage}
+                  disabled={uploadingImage}
+                >
+                  <ImageIcon size={24} color={COLORS.primary} />
+                  <Text style={styles.thumbnailSelectorText}>
+                    {uploadingImage ? 'Uploading...' : 'Select Thumbnail Image'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
             
             <View style={styles.modalButtons}>
@@ -570,5 +743,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  thumbnailContainer: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  thumbnailPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  changeThumbnailButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  changeThumbnailText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  thumbnailSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 8,
+  },
+  thumbnailSelectorText: {
+    marginLeft: 8,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
 }); 

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { X } from 'lucide-react-native';
 import { showAlert } from '../components/BeautifulAlert';
-import { Clock, Users2, Plus, BookOpen, GraduationCap, School, ChevronRight } from 'lucide-react-native';
+import { Clock, Users2, Plus, BookOpen, GraduationCap, School, ChevronRight, Image as ImageIcon } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../navigation/AuthContext';
 import { supabase } from '../services/supabase';
 import Button from '../components/Button';
@@ -47,9 +50,13 @@ export default function CoursesScreen({ navigation }) {
     title: '',
     description: '',
     level: 'Beginner',
-    image: 'https://images.unsplash.com/photo-1581544291234-d2d469dc9922?q=80&w=1974&auto=format', // Default image
+    image: null, // Will be set when user uploads an image
     subject_id: null
   });
+  
+  // State for thumbnail handling
+  const [thumbnailImage, setThumbnailImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Check if user is a facilitator or admin
   const isFacilitator = hasRole('facilitator') || hasRole('admin');
@@ -543,181 +550,8 @@ export default function CoursesScreen({ navigation }) {
     );
   };
   
-  // Course creation modal
-  const CreateCourseModal = () => {
-    // Use local state for form inputs to prevent parent re-renders
-    const [localFormState, setLocalFormState] = useState({
-      title: newCourse.title,
-      description: '',
-      level: 'Beginner'
-    });
-    
-    const levelOptions = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
-    
-    // Update parent state only when form is submitted
-    const handleSubmit = async () => {
-      // First update the parent state with local values
-      setNewCourse({
-        ...newCourse,
-        title: localFormState.title,
-        description: localFormState.description,
-        level: localFormState.level
-      });
-      
-      // Then call the create function with the updated values
-      if (!localFormState.title.trim()) {
-        Alert.alert('Error', 'Please enter a course title');
-        return;
-      }
-
-      if (!selectedSubject) {
-        Alert.alert('Error', 'Please return to subject selection before creating a course');
-        return;
-      }
-
-      try {
-        setLoading(true);
-        
-        // Create new course in database with subject_id
-        const { data, error } = await supabase
-          .from('courses')
-          .insert([
-            {
-              title: localFormState.title,
-              description: localFormState.description,
-              level: localFormState.level,
-              subject_id: selectedSubject.id,
-              image: newCourse.image,
-              created_by: userProfile.user_id
-            }
-          ])
-          .select();
-
-        if (error) {
-          throw error;
-        }
-
-        // Reset form and close modal
-        setLocalFormState({
-          title: '',
-          description: '',
-          level: 'Beginner'
-        });
-        setNewCourse({
-          ...newCourse,
-          title: '',
-          description: '',
-          level: 'Beginner'
-        });
-        setModalVisible(false);
-        
-        // Refresh courses list for the current subject
-        fetchCoursesBySubject(selectedSubject.id);
-        
-        Alert.alert('Success', 'Course created successfully!');
-      } catch (error) {
-        console.error('Error creating course:', error.message);
-        Alert.alert('Error', 'Failed to create course. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    // Reset local state when modal is closed
-    useEffect(() => {
-      if (modalVisible) {
-        setLocalFormState({
-          title: newCourse.title,
-          description: newCourse.description || '',
-          level: newCourse.level || 'Beginner'
-        });
-      }
-    }, [modalVisible]);
-    
-    return (
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Create New Course</Text>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Course Title</Text>
-              <TextInput
-                style={styles.input}
-                value={localFormState.title}
-                onChangeText={(text) => setLocalFormState({...localFormState, title: text})}
-                placeholder="Enter course title"
-              />
-            </View>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={localFormState.description}
-                onChangeText={(text) => setLocalFormState({...localFormState, description: text})}
-                placeholder="Enter course description"
-                multiline={true}
-                numberOfLines={3}
-              />
-            </View>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Level</Text>
-              <View style={styles.levelButtons}>
-                {levelOptions.map(level => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[
-                      styles.levelButton,
-                      localFormState.level === level && styles.selectedLevel
-                    ]}
-                    onPress={() => setLocalFormState({...localFormState, level})}
-                  >
-                    <Text 
-                      style={[
-                        styles.levelButtonText,
-                        localFormState.level === level && styles.selectedLevelText
-                      ]}
-                    >
-                      {level}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Subject</Text>
-              <Text style={styles.subjectInfo}>{selectedSubject?.name || 'No subject selected'}</Text>
-            </View>
-            
-            <View style={styles.modalButtons}>
-              <Button
-                title="Cancel"
-                onPress={() => setModalVisible(false)}
-                variant="outline"
-                style={{ flex: 1, marginRight: 8 }}
-              />
-              <Button
-                title="Create Course"
-                onPress={handleSubmit}
-                variant="primary"
-                loading={loading}
-                style={{ flex: 1, marginLeft: 8 }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
+  // Deleted duplicate function, using the one inside the CreateCourseModal
+  
   // Helper function to render breadcrumb navigation
   const renderBreadcrumbs = () => {
     return (
@@ -755,7 +589,7 @@ export default function CoursesScreen({ navigation }) {
       </View>
     );
   };
-
+  
   // Render a curriculum card
   const renderCurriculumCard = (item) => (
     <TouchableOpacity 
@@ -819,6 +653,402 @@ export default function CoursesScreen({ navigation }) {
       </View>
     </TouchableOpacity>
   );
+  
+  // Local state for form inputs to prevent parent re-renders
+  const [localFormState, setLocalFormState] = useState({
+    title: '',
+    description: '',
+    level: 'Beginner',
+    image: null
+  });
+  
+  // Separate state for level selection to prevent flashing
+  const [selectedLevel, setSelectedLevel] = useState('Beginner');
+  
+  // Reset local form state when modal closes
+  const resetLocalFormState = () => {
+    setLocalFormState({
+      title: '',
+      description: '',
+      level: 'Beginner',
+      image: null
+    });
+    setSelectedLevel('Beginner');
+    setThumbnailImage(null);
+  };
+  
+  // Pick image from device gallery
+  const pickImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your media library');
+        return;
+      }
+      
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedImage = result.assets[0];
+        setThumbnailImage(selectedImage.uri);
+        
+        // Get file info
+        const fileInfo = {
+          uri: selectedImage.uri,
+          name: selectedImage.fileName || `image-${Date.now()}.jpg`,
+          size: selectedImage.fileSize || 0,
+          mimeType: selectedImage.mimeType || 'image/jpeg',
+        };
+        
+        // Upload the image
+        const imageUrl = await uploadThumbnail(fileInfo);
+        if (imageUrl) {
+          setLocalFormState({
+            ...localFormState,
+            image: imageUrl
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+  
+  // Upload thumbnail to Supabase
+  const uploadThumbnail = async (fileInfo) => {
+    try {
+      setUploadingImage(true);
+      
+      const filePath = `course-thumbnails/new/${Date.now()}_${fileInfo.name}`;
+      let contentType = fileInfo.mimeType || 'image/jpeg';
+      
+      console.log(`Uploading thumbnail: ${fileInfo.name}, type: ${contentType}`);
+      
+      if (Platform.OS === 'web') {
+        // For web, use standard Blob approach
+        const response = await fetch(fileInfo.uri);
+        const blob = await response.blob();
+        
+        const { data, error } = await supabase
+          .storage
+          .from('course-thumbnails')
+          .upload(filePath, blob, {
+            contentType: contentType,
+            upsert: true,
+          });
+          
+        if (error) {
+          console.error('Supabase storage upload error:', error);
+          throw error;
+        }
+      } else {
+        // For React Native, use direct binary upload approach with signed URLs
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('course-thumbnails')
+          .createSignedUploadUrl(filePath);
+        
+        if (signedUrlError) {
+          console.error('Error creating signed URL:', signedUrlError);
+          throw signedUrlError;
+        }
+        
+        // Use Expo's FileSystem.uploadAsync for direct binary upload
+        const uploadOptions = {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            'Content-Type': contentType
+          }
+        };
+        
+        const uploadResult = await FileSystem.uploadAsync(
+          signedUrlData.signedUrl, 
+          fileInfo.uri, 
+          uploadOptions
+        );
+        
+        if (uploadResult.status !== 200) {
+          console.error('Upload failed:', uploadResult);
+          throw new Error(`Upload failed with status ${uploadResult.status}`);
+        }
+        
+        console.log('Thumbnail uploaded successfully via signed URL');
+      }
+      
+      // Get the public URL for the file
+      const { data: publicURLData } = supabase
+        .storage
+        .from('course-thumbnails')
+        .getPublicUrl(filePath);
+      
+      console.log('Thumbnail uploaded successfully:', publicURLData.publicUrl);
+      return publicURLData.publicUrl;
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      Alert.alert('Error', 'Failed to upload thumbnail. Please try again.');
+      setThumbnailImage(null);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+  
+  // Reset local state when modal is opened
+  useEffect(() => {
+    if (modalVisible) {
+      // Reset form state when modal opens
+      resetLocalFormState();
+    }
+  }, [modalVisible]);
+  
+  // Course creation modal
+  const CreateCourseModal = () => {
+    const levelOptions = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
+    
+    // Handle level selection with state update prevention
+    const handleLevelSelect = (level) => {
+      if (selectedLevel === level) return; // Prevent unnecessary re-renders
+      
+      // Only update the visual state immediately
+      setSelectedLevel(level);
+      
+      // Debounce the actual form state update to prevent modal flicker
+      requestAnimationFrame(() => {
+        setLocalFormState(prev => ({
+          ...prev,
+          level: level
+        }));
+      });
+    };
+    
+    // Handle course creation submission
+    const handleSubmit = async () => {
+      try {
+        // Validate form
+        if (!localFormState.title.trim()) {
+          Alert.alert('Error', 'Please enter a course title');
+          return;
+        }
+        
+        if (!selectedSubject) {
+          Alert.alert('Error', 'Please select a subject');
+          return;
+        }
+
+        setLoading(true);
+        
+        // Create course object
+        const newCourseData = {
+          title: localFormState.title,
+          description: localFormState.description,
+          level: localFormState.level,
+          subject_id: selectedSubject.id,
+          image: localFormState.image || 'https://images.unsplash.com/photo-1581544291234-d2d469dc9922?q=80&w=1974&auto=format', // Use uploaded image or default
+          created_by: userProfile.user_id,
+          duration: '8 weeks', // Default duration
+          updated_at: new Date(),
+          created_at: new Date(),
+        };
+        
+        // Create new course in database
+        const { data, error } = await supabase
+          .from('courses')
+          .insert([newCourseData])
+          .select();
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Reset form and close modal
+        resetLocalFormState();
+        setNewCourse({
+          ...newCourse,
+          title: '',
+          description: '',
+          level: 'Beginner'
+        });
+        setModalVisible(false);
+        
+        // Refresh courses list for the current subject
+        fetchCoursesBySubject(selectedSubject.id);
+        
+        Alert.alert('Success', 'Course created successfully!');
+      } catch (error) {
+        console.error('Error creating course:', error.message);
+        Alert.alert('Error', 'Failed to create course. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    return (
+      <Modal
+        visible={modalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+        presentationStyle="overFullScreen"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView 
+              contentContainerStyle={styles.scrollableModalContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+            <Text style={styles.modalTitle}>Create New Course</Text>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Course Title</Text>
+              <TextInput
+                style={styles.input}
+                value={localFormState.title}
+                onChangeText={(text) => setLocalFormState({...localFormState, title: text})}
+                placeholder="Enter course title"
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={localFormState.description}
+                onChangeText={(text) => setLocalFormState({...localFormState, description: text})}
+                placeholder="Enter course description"
+                multiline={true}
+                numberOfLines={3}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Level</Text>
+              <View style={styles.levelButtonsContainer}>
+                <View style={styles.levelButtons}>
+                  {levelOptions.slice(0, 3).map(level => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.levelButton,
+                        selectedLevel === level && styles.selectedLevel
+                      ]}
+                      onPress={() => handleLevelSelect(level)}
+                    >
+                      <Text 
+                        style={[
+                          styles.levelButtonText,
+                          selectedLevel === level && styles.selectedLevelText
+                        ]}
+                      >
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.allLevelsButton,
+                    selectedLevel === 'All Levels' && styles.selectedLevel
+                  ]}
+                  onPress={() => handleLevelSelect('All Levels')}
+                >
+                  <Text 
+                    style={[
+                      styles.levelButtonText,
+                      selectedLevel === 'All Levels' && styles.selectedLevelText
+                    ]}
+                  >
+                    All Levels
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Subject</Text>
+              <Text style={styles.subjectInfo}>{selectedSubject?.name || 'No subject selected'}</Text>
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Course Thumbnail</Text>
+              
+              {thumbnailImage ? (
+                <View style={styles.thumbnailContainer}>
+                  <Image 
+                    source={{ uri: thumbnailImage }}
+                    style={styles.thumbnailPreview}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity 
+                    style={styles.thumbnailCloseButton}
+                    onPress={() => {
+                      setThumbnailImage(null);
+                      setLocalFormState(prev => ({ ...prev, image: null }));
+                    }}
+                  >
+                    <X size={20} color="white" />
+                  </TouchableOpacity>
+                  <View style={styles.thumbnailOverlay}>
+                    <TouchableOpacity 
+                      style={styles.changeThumbnailButton}
+                      onPress={pickImage}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <Text style={styles.changeThumbnailText}>Change Image</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.thumbnailSelector}
+                  onPress={pickImage}
+                  disabled={uploadingImage}
+                >
+                  <View style={styles.thumbnailIconContainer}>
+                    <ImageIcon size={36} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.thumbnailSelectorText}>
+                    {uploadingImage ? 'Uploading...' : 'Select Thumbnail Image'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <Button
+                title="Cancel"
+                onPress={() => setModalVisible(false)}
+                variant="outline"
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title="Create Course"
+                onPress={handleSubmit}
+                variant="primary"
+                loading={loading}
+                style={{ flex: 1, marginLeft: 8 }}
+              />
+            </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   // Main return for the component
   return (
@@ -1053,6 +1283,10 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 500,
+    maxHeight: '85%',
+  },
+  scrollableModalContent: {
+    paddingBottom: 24,
   },
   modalTitle: {
     fontSize: 24,
@@ -1087,34 +1321,222 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 24,
   },
+  levelButtonsContainer: {
+    gap: 10,
+  },
   levelButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -4,
   },
   levelButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 4,
-    marginBottom: 8,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 8,
+    margin: 4,
+    minWidth: 60,
+    height: 36,
+  },
+  allLevelsButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 10,
+    height: 45,
   },
   selectedLevel: {
-    backgroundColor: COLORS.primary + '20', // 20% opacity
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary,
   },
   levelButtonText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.lightText,
+    color: COLORS.text,
+    fontWeight: '500',
   },
   selectedLevelText: {
+    color: '#FFFFFF',
+  },
+  subjectInfo: {
+    fontSize: 16,
+    color: COLORS.text,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    textAlign: 'center',
+  },
+  breadcrumbs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    flexWrap: 'wrap',
+  },
+  breadcrumbItem: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  breadcrumbItemActive: {
+    backgroundColor: '#E5E7EB',
+  },
+  breadcrumbText: {
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  breadcrumbSeparator: {
+    marginHorizontal: 8,
+    color: COLORS.lightText,
+  },
+  curriculumCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  subjectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+  cardIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: COLORS.lightText,
+  },
+  listContainer: {
+    marginTop: 8,
+  },
+
+  thumbnailContainer: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    position: 'relative',
+  },
+  thumbnailPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+  },
+  thumbnailOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  changeThumbnailButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changeThumbnailText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  thumbnailSelector: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 24,
+    marginTop: 12,
+    height: 160,
+  },
+  thumbnailIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  thumbnailSelectorText: {
     color: COLORS.primary,
+    fontWeight: '500',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  thumbnailCloseButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   subjectInfo: {
     fontSize: 16,

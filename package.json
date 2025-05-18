@@ -1,7 +1,8 @@
 {
   "name": "studyagora",
   "version": "1.0.0",
-  "main": "index.js",  "scripts": {
+  "main": "index.js",
+  "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -38,7 +39,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-video": "^6.13.0",
-    "react-native-webview": "^13.13.5"
+    "react-native-webview": "^13.13.5",
+    "expo-image-picker": "~16.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
