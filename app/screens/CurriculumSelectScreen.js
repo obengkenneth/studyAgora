@@ -34,7 +34,7 @@ const CURRICULUMS = [
 ];
 
 export default function CurriculumSelectScreen({ navigation, route }) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   // Get userId from route params or from authenticated user
   const userId = route.params?.userId || user?.id;
   const [selectedCurriculum, setSelectedCurriculum] = useState(null);
@@ -94,22 +94,53 @@ export default function CurriculumSelectScreen({ navigation, route }) {
       setLoading(true);
       console.log('Updating curriculum for user ID:', userId);
       
-      // Use admin client to bypass RLS policies
-      const { data, error } = await updateCurriculum(userId, selectedCurriculum);
+      // First, we need to get the curriculum ID for the selected curriculum
+      const { data: curriculumData, error: curriculumError } = await supabase
+        .from('curriculums')
+        .select('id')
+        .eq('name', selectedCurriculum)
+        .single();
+        
+      if (curriculumError) {
+        console.error('Error fetching curriculum:', curriculumError);
+        throw curriculumError;
+      }
+      
+      if (!curriculumData || !curriculumData.id) {
+        throw new Error(`Curriculum '${selectedCurriculum}' not found`);
+      }
+      
+      // Then insert the curriculum for this user, marking it as primary
+      const { data, error } = await supabase
+        .from('user_curriculums')
+        .upsert({
+          user_id: userId,
+          curriculum_id: curriculumData.id,
+          is_primary: true,
+          created_at: new Date()
+        });
+        
+      // With our new curriculum system, we don't need to update the legacy user_profiles.curriculum field
 
       if (error) {
         console.error('Database error:', error);
         throw error;
       }
+      
+      // No legacy code to run
 
-      console.log('Curriculum updated successfully, navigating to Dashboard');
-      // Navigate to the App stack instead of directly to Dashboard
+      console.log('User curriculum updated successfully');
+      
+      // Refresh auth context to make sure user profile is current with new role and curriculum data
+      await refreshProfile();
+
+      // Navigate to the main app stack to complete onboarding
       navigation.reset({
         index: 0,
-        routes: [{ name: 'App' }],
+        routes: [{ name: 'App' }], // 'App' is the root application stack
       });
     } catch (error) {
-      console.error('Error saving curriculum selection:', error.message);
+      console.error('Error saving curriculum choice:', error.message);
       Alert.alert('Error', 'Failed to save your selection. Please try again.');
     } finally {
       setLoading(false);

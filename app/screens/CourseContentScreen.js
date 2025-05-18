@@ -54,7 +54,7 @@ const CONTENT_TYPES = [
 
 export default function CourseContentScreen({ route, navigation }) {
   const { courseId, courseTitle } = route.params;
-  const { session, userProfile } = useAuth(); // Get the session from AuthContext at component level
+  const { session, userProfile, hasRole } = useAuth(); // Get the session and auth data from AuthContext
   const [isCreator, setIsCreator] = useState(false);
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,8 +70,8 @@ export default function CourseContentScreen({ route, navigation }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   
-  // Track if the user is a facilitator and can edit this course
-  const isFacilitator = userProfile?.user_group === 'facilitator';
+  // Track if the user is a facilitator or admin and can edit this course
+  const isFacilitator = hasRole('facilitator') || hasRole('admin');
 
   useEffect(() => {
     navigation.setOptions({

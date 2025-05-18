@@ -17,7 +17,7 @@ const COLORS = {
 
 export default function CourseDetailsScreen({ route, navigation }) {
   const { courseId } = route.params;
-  const { userProfile } = useAuth();
+  const { userProfile, hasRole } = useAuth();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -43,6 +43,11 @@ export default function CourseDetailsScreen({ route, navigation }) {
   
   // Use abbreviated names on smaller screens
   const getCurriculumDisplay = (curriculum) => {
+    // Add null check to prevent errors
+    if (!curriculum) {
+      return 'N/A';
+    }
+    
     if (screenWidth < 350) {
       // Very small screens
       const abbrs = {
@@ -58,7 +63,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
   
   // Check if user is the course creator
   const isCreator = userProfile?.user_id === course?.created_by;
-  const isFacilitator = userProfile?.user_group === 'facilitator';
+  const isFacilitator = hasRole('facilitator') || hasRole('admin');
 
   useEffect(() => {
     fetchCourseDetails();
@@ -67,22 +72,47 @@ export default function CourseDetailsScreen({ route, navigation }) {
   const fetchCourseDetails = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First fetch the course data
+      const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*')
         .eq('id', courseId)
         .single();
 
-      if (error) {
-        throw error;
+      if (courseError) {
+        throw courseError;
       }
-
-      setCourse(data);
+      
+      // Now fetch the related subject with curriculum information
+      let curriculumName = null;
+      if (courseData.subject_id) {
+        const { data: subjectData, error: subjectError } = await supabase
+          .from('subjects')
+          .select('*, curriculum:curriculum_id(*)')
+          .eq('id', courseData.subject_id)
+          .single();
+        
+        // Get curriculum name if available
+        if (!subjectError && subjectData && subjectData.curriculum) {
+          curriculumName = subjectData.curriculum.name?.toLowerCase() || null;
+        }
+      }
+      
+      // Create a complete course object with curriculum info
+      const courseWithCurriculum = {
+        ...courseData,
+        curriculum: curriculumName // Add curriculum field from the joined data
+      };
+      
+      setCourse(courseWithCurriculum);
       setEditCourse({
-        title: data.title,
-        duration: data.duration,
-        curriculum: data.curriculum,
+        title: courseData.title,
+        duration: courseData.duration,
+        curriculum: curriculumName,
       });
+      
+      console.log('Course loaded with curriculum:', curriculumName);
     } catch (error) {
       console.error('Error fetching course details:', error.message);
       Alert.alert('Error', 'Failed to load course details. Please try again later.');

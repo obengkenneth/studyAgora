@@ -5,17 +5,23 @@ const AuthContext = createContext({
   user: null,
   session: null,
   userProfile: null,
+  userRoles: [],
+  userCurriculums: [],
   loading: true,
   isVerified: false,
   pendingVerification: false,
   resendVerificationEmail: () => {},
   refreshProfile: () => {},
+  hasRole: () => false,
+  getPrimaryCurriculum: () => null,
 });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [userRoles, setUserRoles] = useState([]);
+  const [userCurriculums, setUserCurriculums] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(false);
@@ -85,6 +91,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('Fetching user profile in AuthContext for ID:', userId);
       
+      // Fetch basic profile
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -101,6 +108,48 @@ export function AuthProvider({ children }) {
       
       // Store profile data in state
       setUserProfile(data || null);
+      
+      // Fetch user roles (with role details)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select(`
+          id,
+          role:role_id(id, name, description)
+        `)
+        .eq('user_id', userId);
+        
+      if (!roleError && roleData) {
+        // Extract role information
+        const roles = roleData.map(item => item.role);
+        console.log('User roles fetched:', roles);
+        setUserRoles(roles);
+      } else {
+        console.error('Error fetching user roles:', roleError?.message);
+        setUserRoles([]);
+      }
+      
+      // Fetch user curriculums (with curriculum details)
+      const { data: curriculumData, error: curriculumError } = await supabase
+        .from('user_curriculums')
+        .select(`
+          id,
+          is_primary,
+          curriculum:curriculum_id(id, name, description)
+        `)
+        .eq('user_id', userId);
+        
+      if (!curriculumError && curriculumData) {
+        // Extract curriculum information
+        const curriculums = curriculumData.map(item => ({
+          ...item.curriculum,
+          is_primary: item.is_primary
+        }));
+        console.log('User curriculums fetched:', curriculums);
+        setUserCurriculums(curriculums);
+      } else {
+        console.error('Error fetching user curriculums:', curriculumError?.message);
+        setUserCurriculums([]);
+      }
       
       // If forcing refresh and no profile yet, try again after a short delay
       if (forceRefresh && !data) {
@@ -122,40 +171,35 @@ export function AuthProvider({ children }) {
       let localLoading = true;
       
       try {
-        console.log('refreshProfile: starting for user ID', user.id);
-        
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error) {
-          if (error.code !== 'PGRST116') {
-            console.error('Error fetching user profile:', error.message);
-          }
-        } else {
-          console.log('refreshProfile: profile data retrieved', data);
-          // Update profile state only if different
-          if (JSON.stringify(data) !== JSON.stringify(userProfile)) {
-            setUserProfile(data || null);
-          }
-        }
-        
-        // If no data was found and we're forcing a refresh, try again after a short delay
-        if (!data) {
-          console.log('refreshProfile: No profile found, will retry after delay');
-          setTimeout(() => fetchUserProfile(user.id), 2000);
-    }
+        // Simply call our full profile fetch function
+        await fetchUserProfile(user.id);
+        return { success: true };
       } catch (error) {
         console.error('Error in refreshProfile:', error.message);
+        return { success: false };
       } finally {
         localLoading = false;
       }
-      
-      return { success: true };
     }
     return { success: false };
+  };
+  
+  // Helper function to check if user has a specific role
+  const hasRole = (roleName) => {
+    if (!userRoles || userRoles.length === 0) return false;
+    return userRoles.some(role => role.name === roleName);
+  };
+  
+  // Helper function to get primary curriculum or first available
+  const getPrimaryCurriculum = () => {
+    if (!userCurriculums || userCurriculums.length === 0) return null;
+    
+    // First try to find the primary curriculum
+    const primary = userCurriculums.find(curr => curr.is_primary);
+    if (primary) return primary;
+    
+    // If no primary is set, return the first one
+    return userCurriculums[0];
   };
 
   const resendVerificationEmail = async (email) => {
@@ -177,11 +221,15 @@ export function AuthProvider({ children }) {
     user,
     session,
     userProfile,
+    userRoles,
+    userCurriculums,
     loading,
     isVerified,
     pendingVerification,
     resendVerificationEmail,
     refreshProfile,
+    hasRole,
+    getPrimaryCurriculum,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

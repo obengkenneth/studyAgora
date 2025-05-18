@@ -308,7 +308,7 @@ function AppNavigator() {
 }
 
 export default function Navigation() {
-  const { user, loading, userProfile, refreshProfile } = useAuth();
+  const { user, loading, userProfile, userRoles, userCurriculums, refreshProfile } = useAuth();
   
   // Force refresh user profile when mounting
   useEffect(() => {
@@ -323,17 +323,25 @@ export default function Navigation() {
   
   if (user) {
     console.log('Navigation: User is authenticated:', user.id);
-    if (userProfile) {
-      console.log('Navigation: User profile exists:', userProfile.user_group);
-      // Check if onboarding is needed
-      const needsOnboarding = !userProfile.user_group || !userProfile.curriculum;
-      initialRouteName = needsOnboarding ? "Onboarding" : "App";
-      console.log('Navigation: Setting initialRouteName to', initialRouteName);
+    
+    // Check if user has completed onboarding by looking at our new tables
+    const hasRole = userRoles && userRoles.length > 0;
+    const hasCurriculum = userCurriculums && userCurriculums.length > 0;
+    
+    if (hasRole && hasCurriculum) {
+      console.log('Navigation: User has role and curriculum assigned');
+      console.log('Navigation: Roles:', JSON.stringify(userRoles));
+      console.log('Navigation: Curriculums:', JSON.stringify(userCurriculums));
+      initialRouteName = "App";
     } else {
-      // User is logged in but no profile yet, start onboarding
-      console.log('Navigation: No user profile, starting onboarding');
+      // User needs to complete onboarding
+      console.log('Navigation: User missing role or curriculum, starting onboarding');
+      console.log('Navigation: Has role:', hasRole);
+      console.log('Navigation: Has curriculum:', hasCurriculum);
       initialRouteName = "Onboarding";
     }
+    
+    console.log('Navigation: Setting initialRouteName to', initialRouteName);
   } else {
     console.log('Navigation: No authenticated user, showing Auth screens');
   }
@@ -342,11 +350,12 @@ export default function Navigation() {
   useEffect(() => {
   console.log('Navigation state:', { 
     userState: user ? 'Logged in' : 'Not logged in', 
-    profileState: userProfile ? 'Has profile' : 'No profile',
-      onboardingNeeded: userProfile ? (!userProfile.user_group || !userProfile.curriculum) : true,
+    hasRoles: userRoles && userRoles.length > 0,
+    hasCurriculums: userCurriculums && userCurriculums.length > 0,
+    onboardingNeeded: !(userRoles && userRoles.length > 0 && userCurriculums && userCurriculums.length > 0),
     selectedStack: initialRouteName
   });
-  }, [user, userProfile, initialRouteName]);
+  }, [user, userProfile, userRoles, userCurriculums, initialRouteName]);
   
   // Show a loading indicator while checking auth state
   if (loading) {

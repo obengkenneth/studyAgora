@@ -1,0 +1,105 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are a senior software developer helping me build this project. Here is my specification and build strategy:
+
+Product Requirements Document (PRD)
+Project: Educational Mobile App for Cambridge, SAT & IELTS Preparation
+Version: 1.0
+Platform: React Native
+
+1. Overview & Objectives
+The mobile app will provide educational resources for students preparing for Cambridge, SAT, and IELTS exams. The project is modular and focuses on three main areas: enrollment, learning, and resource sharing, with integrated payment processing. The primary goals are:
+
+To deliver an intuitive, user-friendly mobile app that connects students (and their parents) with tailored educational content.
+
+To offer both live interactive sessions and pre-recorded sessions for learning.
+
+To build a resource library where facilitators can share notes, past questions, and books.
+
+To integrate secure payment solutions for subscriptions and other transactions.
+
+2. Target Users & Personas
+Students:
+
+Age: 12–18 years (and possibly young adults)
+
+Needs: Access to live tutoring, recorded sessions, and study materials
+
+Parents:
+
+Role: Enrolling their children and overseeing progress
+
+Needs: Easy-to-use enrollment, secure payment processing, and clear scheduling
+
+Facilitators/Teachers:
+
+Role: Conducting live sessions and uploading study resources
+
+Needs: An efficient way to manage sessions and distribute content
+
+3. Core Modules & Functionalities
+3.1 Enrollment Module
+User Registration:
+
+Sign-up for both parents and students with account creation.
+
+Data Collection:
+
+Biodata: Names, year, class
+
+Location, School
+
+Curriculum selection (e.g., Cambridge, SAT, IELTS)
+
+Specific subject assistance requirements
+
+Filtering:
+
+Ability to filter sign-ups by curriculum and subject needs for administrative ease.
+
+3.2 Learning Module
+This module consists of two learning modes:
+
+A. Live Session Mode
+Session Registration Flow:
+
+Students register for live sessions in advance.
+
+A push notification is sent when the session starts.
+
+Tapping the notification allows the student to join the live session.
+
+Live Session Functionalities:
+
+Audio Controls: Ability to mute/unmute.
+
+Interaction: “Raise hand” feature for asking questions.
+
+Chatbox: Real-time text communication, similar to Google Meet’s chat.
+
+Facilitator Controls:
+
+Manage session participants, moderate chat, and handle Q&A.
+
+B. Pre-recorded Sessions Mode
+Content Access:
+
+Students can browse and play pre-recorded educational sessions.
+
+Playback Features: Standard video controls (play, pause, rewind, etc.).  
+#Build strategy
+Thanks, Ken — that helps a ton. Since you’re a beginner in React Native, working full-time, and aiming to use open-source tools like Tailwind and Supabase/Postgres, here’s a personalized plan just for you.  ---  ## ✅ Recommended Technology Stack  ### **Frontend** - **Framework:** [React Native](mdc:https:/reactnative.dev) (with Expo to simplify setup) - **Styling:** [Tailwind via NativeWind](mdc:https:/www.nativewind.dev) (Tailwind for React Native) - **State Management:** React Context (easy to start with), later consider Zustand or Redux Toolkit  ### **Backend** - **BaaS:** [Supabase](mdc:https:/supabase.com)   - Auth: For user sign-up/login (students, parents, facilitators)   - Database: PostgreSQL   - Realtime: For live session chat or raise-hand features   - Storage: For uploading study materials (PDFs, videos)   - Edge Functions: For custom logic (e.g., payment webhook handling)  ### **Payments** - [Stripe](mdc:https:/stripe.com) (free to start, excellent docs)   - Can be used via Supabase Edge Functions  ### **Notifications** - [Expo Notifications](mdc:https:/docs.expo.dev/push-notifications/overview) (good for beginners)  ### **Live Sessions** - Use **Daily.co** or **100ms** for video/audio (both have generous free tiers and mobile SDKs)  ---  ## 🔧 Development Approach  ### **Architecture** - Modular structure: Split into clearly defined modules — `auth`, `learning`, `sessions`, `resources`, `payments`. - Start simple: Pre-recorded content first (easy to ship), then live sessions.  ### **Backend Strategy** - Let Supabase handle the bulk of backend tasks — real-time, auth, storage, database. - Use Supabase Row Level Security (RLS) for data privacy (students shouldn't see each other’s data, for example).  ---  ## ⚠️ Potential Challenges + Solutions  | Challenge | Solution | |----------|----------| | Live session handling | Use an external video SDK (Daily.co, 100ms). Don’t reinvent the wheel. | | Payment processing | Use Stripe test environment. Build only subscription logic first. | | Notifications | Start with Expo's push notification — easy setup and free. | | Video Upload/Playback | Store videos in Supabase Storage. Use `react-native-video` to play them. |  ---  ## 📦 Resource Requirements  - Supabase (free tier) - Expo Go app (for local testing) - Free tier of Daily.co or 100ms - Stripe test account - GitHub for version control  ---  ## 🛠 Step-by-Step Development Plan  ### **Phase 1: Setup & Foundations** 1. Initialize React Native project with Expo 2. Set up NativeWind for Tailwind styling 3. Create a Supabase project and configure tables:    - `users` (roles: student, parent, facilitator)    - `sessions` (live, pre-recorded)    - `resources` (notes, questions, books)    - `payments`  ### **Phase 2: User Authentication & Enrollment** 1. Sign up / log in using Supabase Auth 2. Capture biodata, curriculum, subject needs 3. Save user metadata securely to Supabase  ### **Phase 3: Learning Module** - **Part A**: Pre-recorded Sessions   - Browse + play videos   - Track video progress (optional)  - **Part B**: Live Sessions   - List upcoming sessions   - Join session via video SDK   - Enable chat, “raise hand” using Supabase realtime or 3rd party  ### **Phase 4: Resource Library** 1. Facilitator uploads resources (PDFs, Docs) 2. Students browse/download them  ### **Phase 5: Payment Integration** 1. Basic subscription flow with Stripe 2. Securely verify with webhooks (via Supabase Edge Functions)  ### **Phase 6: Notifications** 1. Push notifications with Expo 2. Trigger when live session is about to begin  ---  
+
+Please:
+1. Ask any clarifying questions you need.
+2. Create and detail the project plan.
+3. Confirm you'll work through this step by step.
+4. Wait for my confirmation at each major stage.
+5. Help me test functionality as we go.
+
+Important: Don't try to build everything at once! Let's work methodically and ensure each piece works before moving on.
+
+IMPORTANT NOTE TO CONSIDER: Color schemes for the app are  green, red and gold accent

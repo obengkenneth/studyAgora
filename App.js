@@ -7,6 +7,7 @@ import { testSupabaseConnection } from './app/services/supabase';
 import { useEffect } from 'react';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { BeautifulAlert } from './app/components/BeautifulAlert';
 
 // Initialize WebBrowser for OAuth redirects
 WebBrowser.maybeCompleteAuthSession();
@@ -40,6 +41,7 @@ export default function App() {
       <AuthProvider>
         <AppNavigator />
         <StatusBar style="auto" />
+        <BeautifulAlert />
       </AuthProvider>
     </SafeAreaProvider>
   );

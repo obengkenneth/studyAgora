@@ -74,17 +74,41 @@ export default function UserGroupScreen({ navigation, route }) {
 
     try {
       setLoading(true);
-      console.log('Updating user group for ID:', userId);
+      console.log('Updating user role for ID:', userId);
       
-      // Update the user's metadata with the selected group using admin client
-      const { data, error } = await updateUserGroup(userId, selectedGroup);
+      // First, we need to get the role ID for the selected role
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', selectedGroup)
+        .single();
+        
+      if (roleError) {
+        console.error('Error fetching role:', roleError);
+        throw roleError;
+      }
+      
+      if (!roleData || !roleData.id) {
+        throw new Error(`Role '${selectedGroup}' not found`);
+      }
+      
+      // Then insert the role for this user
+      const { data, error } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: userId,
+          role_id: roleData.id,
+          created_at: new Date()
+        });
 
       if (error) {
         console.error('Database error:', error);
         throw error;
       }
+      
+      // With our new role system, we don't need to update the legacy user_profiles.user_group field
 
-      console.log('User group updated successfully:', data);
+      console.log('User role updated successfully');
       console.log('Navigating to CurriculumSelect with userId:', userId);
       
       // Navigate to the curriculum selection screen with a reset to prevent going back
@@ -93,7 +117,7 @@ export default function UserGroupScreen({ navigation, route }) {
         routes: [{ name: 'CurriculumSelect', params: { userId } }],
       });
     } catch (error) {
-      console.error('Error saving user group:', error.message);
+      console.error('Error saving user role:', error.message);
       Alert.alert('Error', 'Failed to save your selection. Please try again.');
     } finally {
       setLoading(false);
