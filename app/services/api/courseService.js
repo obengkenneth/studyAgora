@@ -6,6 +6,7 @@ export const fetchCourses = async (subjectId) => {
       .from('courses')
       .select('*')
       .eq('subject_id', subjectId)
+      .is('deleted_at', null) // Only fetch courses that haven't been deleted
       .order('created_at', { ascending: false });
       
     if (error) throw error;
@@ -33,6 +34,7 @@ export const fetchCourseById = async (courseId) => {
         )
       `)
       .eq('id', courseId)
+      .is('deleted_at', null) // Only fetch courses that haven't been deleted
       .single();
       
     if (error) throw error;
@@ -78,9 +80,10 @@ export const updateCourse = async (courseId, courseData) => {
 
 export const deleteCourse = async (courseId) => {
   try {
+    // Set the deleted_at field to the current timestamp instead of hard deleting
     const { error } = await supabase
       .from('courses')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', courseId);
       
     if (error) throw error;
