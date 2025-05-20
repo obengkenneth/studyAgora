@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
-import { X } from 'lucide-react-native';
+import { X, Upload } from 'lucide-react-native';
 import { showAlert } from '../components/BeautifulAlert';
 import { Clock, Users2, Plus, BookOpen, GraduationCap, School, ChevronRight, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,6 +19,8 @@ const COLORS = {
   lightText: '#6B7280',
   background: '#FFFFFF',
 };
+
+// We don't need a custom input component
 
 export default function CoursesScreen({ navigation }) {
   const { userProfile, refreshProfile, hasRole } = useAuth();
@@ -654,37 +656,56 @@ export default function CoursesScreen({ navigation }) {
     </TouchableOpacity>
   );
   
-  // Local state for form inputs to prevent parent re-renders
-  const [localFormState, setLocalFormState] = useState({
+  // Local state for course form
+  const [courseForm, setCourseForm] = useState({
     title: '',
     description: '',
     level: 'Beginner',
     image: null
   });
   
-  // Separate state for level selection to prevent flashing
-  const [selectedLevel, setSelectedLevel] = useState('Beginner');
+  // Reference to maintain course form state during image upload
+  const courseFormRef = React.useRef({
+    title: '',
+    description: '',
+    level: 'Beginner',
+    image: null
+  });
   
-  // Reset local form state when modal closes
-  const resetLocalFormState = () => {
-    setLocalFormState({
+  // Reset course form when modal closes
+  const resetCourseForm = () => {
+    setCourseForm({
       title: '',
       description: '',
       level: 'Beginner',
       image: null
     });
-    setSelectedLevel('Beginner');
+    courseFormRef.current = {
+      title: '',
+      description: '',
+      level: 'Beginner',
+      image: null
+    };
     setThumbnailImage(null);
   };
   
-  // Pick image from device gallery
+  // Pick image without causing re-renders
   const pickImage = async () => {
+    setUploadingImage(true);
+    
     try {
+      // IMPORTANT: Keep a reference to current form state
+      const currentForm = {...courseForm};
+      courseFormRef.current = currentForm;
+      
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant permission to access your media library');
+        showAlert('warning', 'Permission Required', 'Please grant permission to access your media library', [
+          { text: 'OK', primary: true }
+        ]);
+        setUploadingImage(false);
         return;
       }
       
@@ -711,15 +732,22 @@ export default function CoursesScreen({ navigation }) {
         // Upload the image
         const imageUrl = await uploadThumbnail(fileInfo);
         if (imageUrl) {
-          setLocalFormState({
-            ...localFormState,
+          // CRITICAL: Update form with preserved values
+          setCourseForm({
+            title: courseFormRef.current.title,
+            description: courseFormRef.current.description,
+            level: courseFormRef.current.level,
             image: imageUrl
           });
         }
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      showAlert('error', 'Error', 'Failed to pick image. Please try again.', [
+        { text: 'OK', primary: true }
+      ]);
+    } finally {
+      setUploadingImage(false);
     }
   };
   
@@ -806,7 +834,7 @@ export default function CoursesScreen({ navigation }) {
   useEffect(() => {
     if (modalVisible) {
       // Reset form state when modal opens
-      resetLocalFormState();
+      resetCourseForm();
     }
   }, [modalVisible]);
   
@@ -814,47 +842,51 @@ export default function CoursesScreen({ navigation }) {
   const CreateCourseModal = () => {
     const levelOptions = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
     
-    // Handle level selection with state update prevention
+    // Handle level selection (updates courseForm directly)
     const handleLevelSelect = (level) => {
-      if (selectedLevel === level) return; // Prevent unnecessary re-renders
-      
-      // Only update the visual state immediately
-      setSelectedLevel(level);
-      
-      // Debounce the actual form state update to prevent modal flicker
-      requestAnimationFrame(() => {
-        setLocalFormState(prev => ({
-          ...prev,
-          level: level
-        }));
-      });
+      // Update both state and ref to keep them in sync
+      setCourseForm(prev => ({
+        ...prev,
+        level
+      }));
+      courseFormRef.current.level = level;
     };
     
     // Handle course creation submission
     const handleSubmit = async () => {
       try {
-        // Validate form
-        if (!localFormState.title.trim()) {
-          Alert.alert('Error', 'Please enter a course title');
+        // Validate form using courseForm values
+        if (!courseForm.title.trim()) {
+          showAlert('error', 'Error', 'Please enter a course title', [
+            {
+              text: 'OK',
+              primary: true
+            }
+          ]);
           return;
         }
         
         if (!selectedSubject) {
-          Alert.alert('Error', 'Please select a subject');
+          showAlert('error', 'Error', 'Please select a subject', [
+            {
+              text: 'OK',
+              primary: true
+            }
+          ]);
           return;
         }
 
         setLoading(true);
         
-        // Create course object
+        // Create course object directly from courseForm
         const newCourseData = {
-          title: localFormState.title,
-          description: localFormState.description,
-          level: localFormState.level,
+          title: courseForm.title,
+          description: courseForm.description,
+          level: courseForm.level,
           subject_id: selectedSubject.id,
-          image: localFormState.image || 'https://images.unsplash.com/photo-1581544291234-d2d469dc9922?q=80&w=1974&auto=format', // Use uploaded image or default
+          image: courseForm.image || 'https://images.unsplash.com/photo-1581544291234-d2d469dc9922?q=80&w=1974&auto=format', // Use uploaded image or default
           created_by: userProfile.user_id,
-          duration: '8 weeks', // Default duration
+          // No duration field - it doesn't exist in the schema
           updated_at: new Date(),
           created_at: new Date(),
         };
@@ -870,22 +902,26 @@ export default function CoursesScreen({ navigation }) {
         }
         
         // Reset form and close modal
-        resetLocalFormState();
-        setNewCourse({
-          ...newCourse,
-          title: '',
-          description: '',
-          level: 'Beginner'
-        });
+        resetCourseForm();
         setModalVisible(false);
         
         // Refresh courses list for the current subject
         fetchCoursesBySubject(selectedSubject.id);
         
-        Alert.alert('Success', 'Course created successfully!');
+        showAlert('success', 'Success', 'Course created successfully!', [
+          {
+            text: 'OK',
+            primary: true
+          }
+        ]);
       } catch (error) {
         console.error('Error creating course:', error.message);
-        Alert.alert('Error', 'Failed to create course. Please try again.');
+        showAlert('error', 'Error', 'Failed to create course. Please try again.', [
+          {
+            text: 'OK',
+            primary: true
+          }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -912,8 +948,15 @@ export default function CoursesScreen({ navigation }) {
               <Text style={styles.inputLabel}>Course Title</Text>
               <TextInput
                 style={styles.input}
-                value={localFormState.title}
-                onChangeText={(text) => setLocalFormState({...localFormState, title: text})}
+                value={courseForm.title}
+                onChangeText={(text) => {
+                  setCourseForm(prev => ({
+                    ...prev,
+                    title: text
+                  }));
+                  // Also update the ref to maintain form state during image upload
+                  courseFormRef.current.title = text;
+                }}
                 placeholder="Enter course title"
               />
             </View>
@@ -922,8 +965,15 @@ export default function CoursesScreen({ navigation }) {
               <Text style={styles.inputLabel}>Description</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                value={localFormState.description}
-                onChangeText={(text) => setLocalFormState({...localFormState, description: text})}
+                value={courseForm.description}
+                onChangeText={(text) => {
+                  setCourseForm(prev => ({
+                    ...prev,
+                    description: text
+                  }));
+                  // Also update the ref to maintain form state during image upload
+                  courseFormRef.current.description = text;
+                }}
                 placeholder="Enter course description"
                 multiline={true}
                 numberOfLines={3}
@@ -939,14 +989,14 @@ export default function CoursesScreen({ navigation }) {
                       key={level}
                       style={[
                         styles.levelButton,
-                        selectedLevel === level && styles.selectedLevel
+                        courseForm.level === level && styles.selectedLevel
                       ]}
                       onPress={() => handleLevelSelect(level)}
                     >
                       <Text 
                         style={[
                           styles.levelButtonText,
-                          selectedLevel === level && styles.selectedLevelText
+                          courseForm.level === level && styles.selectedLevelText
                         ]}
                       >
                         {level}
@@ -958,14 +1008,14 @@ export default function CoursesScreen({ navigation }) {
                 <TouchableOpacity
                   style={[
                     styles.allLevelsButton,
-                    selectedLevel === 'All Levels' && styles.selectedLevel
+                    courseForm.level === 'All Levels' && styles.selectedLevel
                   ]}
                   onPress={() => handleLevelSelect('All Levels')}
                 >
                   <Text 
                     style={[
                       styles.levelButtonText,
-                      selectedLevel === 'All Levels' && styles.selectedLevelText
+                      courseForm.level === 'All Levels' && styles.selectedLevelText
                     ]}
                   >
                     All Levels
@@ -975,12 +1025,7 @@ export default function CoursesScreen({ navigation }) {
             </View>
             
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Subject</Text>
-              <Text style={styles.subjectInfo}>{selectedSubject?.name || 'No subject selected'}</Text>
-            </View>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Course Thumbnail</Text>
+              <Text style={styles.inputLabel}>Thumbnail</Text>
               
               {thumbnailImage ? (
                 <View style={styles.thumbnailContainer}>
@@ -993,7 +1038,8 @@ export default function CoursesScreen({ navigation }) {
                     style={styles.thumbnailCloseButton}
                     onPress={() => {
                       setThumbnailImage(null);
-                      setLocalFormState(prev => ({ ...prev, image: null }));
+                      setCourseForm(prev => ({ ...prev, image: null }));
+                      courseFormRef.current.image = null;
                     }}
                   >
                     <X size={20} color="white" />
@@ -1026,6 +1072,11 @@ export default function CoursesScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
               )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Subject</Text>
+              <Text style={styles.subjectInfo}>{selectedSubject?.name || 'No subject selected'}</Text>
             </View>
             
             <View style={styles.modalButtons}>
