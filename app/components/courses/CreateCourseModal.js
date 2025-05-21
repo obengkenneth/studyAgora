@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, Alert, ScrollView } from 'react-native';
 import CourseForm from './CourseForm';
 import { createCourse } from '../../services/api/courseService';
 import { fetchSubjectById } from '../../services/api/subjectService';
@@ -76,15 +76,19 @@ const CreateCourseModal = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Create New Course</Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Create New Course</Text>
+          </View>
           
-          <CourseForm
-            subjectId={subjectId}
-            subjectName={subjectName}
-            onSubmit={handleCreateCourse}
-            onCancel={onClose}
-            isSubmitting={isSubmitting}
-          />
+          <ScrollView style={styles.modalScrollContent} contentContainerStyle={styles.modalScrollContentContainer}>
+            <CourseForm
+              subjectId={subjectId}
+              subjectName={subjectName}
+              onSubmit={handleCreateCourse}
+              onCancel={onClose}
+              isSubmitting={isSubmitting}
+            />
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -102,16 +106,27 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 24,
+    padding: 0,
     width: '100%',
     maxWidth: 500,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    padding: 24,
+    paddingBottom: 10,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 20,
     textAlign: 'center',
+  },
+  modalScrollContent: {
+    flexGrow: 0,
+  },
+  modalScrollContentContainer: {
+    padding: 24,
+    paddingTop: 0,
   },
 });
 

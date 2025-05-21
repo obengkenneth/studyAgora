@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Modal, ActivityIndicator, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Clock, Users2, Edit2, Trash2, ArrowLeft, FileText, Book, Plus, Video, LayoutList, Menu, Save, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Clock, Users2, Edit2, Trash2, ArrowLeft, FileText, Book, Plus, Video, LayoutList, Menu, Save, ChevronUp, ChevronDown, MoreVertical, X } from 'lucide-react-native';
 import { useAuth } from '../../navigation/AuthContext';
 import Button from '../../components/Button';
 import CourseForm from '../../components/courses/CourseForm';
 import CreateUnitModal from '../../components/units/CreateUnitModal';
 import { showAlert } from '../../components/BeautifulAlert';
 import { fetchCourseById, updateCourse, deleteCourse } from '../../services/api/courseService';
+import { fetchSubjectById } from '../../services/api/subjectService';
 import { fetchUnitsByCourse, reorderCourseUnits } from '../../services/api/unitService';
 
 // App color scheme
@@ -31,6 +32,8 @@ export default function CourseDetailsScreen({ route, navigation }) {
   const [unitLoading, setUnitLoading] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [reorderedUnits, setReorderedUnits] = useState([]);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [subjectName, setSubjectName] = useState('');
   const [editCourse, setEditCourse] = useState({
     title: '',
     description: '',
@@ -66,6 +69,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
         title: courseData.title || '',
         description: courseData.description || '',
         level: courseData.level || 'Beginner',
+        duration: courseData.duration || '',
         image: courseData.image || null
       });
       
@@ -170,6 +174,34 @@ export default function CourseDetailsScreen({ route, navigation }) {
     }
   };
   
+  // Handle editing course
+  const handleEditCourse = async () => {
+    if (course) {
+      setEditCourse({
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        level: course.level,
+        duration: course.duration,
+        image: course.image,
+      });
+      
+      // Fetch subject name
+      if (course.subject_id) {
+        try {
+          const subjectData = await fetchSubjectById(course.subject_id);
+          if (subjectData) {
+            setSubjectName(subjectData.name);
+          }
+        } catch (error) {
+          console.error('Error fetching subject details:', error);
+        }
+      }
+      
+      setModalVisible(true);
+    }
+  };
+  
   // Handle saving the new unit order
   const saveUnitOrder = async () => {
     try {
@@ -253,15 +285,26 @@ export default function CourseDetailsScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Edit Course</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Course</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <X size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
             
-            <CourseForm
-              initialData={editCourse}
-              subjectId={course?.subject_id}
-              onSubmit={handleUpdateCourse}
-              onCancel={() => setModalVisible(false)}
-              isEditing={true}
-            />
+            <ScrollView style={styles.modalScrollContent} contentContainerStyle={styles.modalScrollContentContainer}>
+              <CourseForm
+                initialData={editCourse}
+                subjectId={course?.subject_id}
+                subjectName={subjectName}
+                onSubmit={handleUpdateCourse}
+                onCancel={() => setModalVisible(false)}
+                isEditing={true}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -430,6 +473,53 @@ export default function CourseDetailsScreen({ route, navigation }) {
           >
             <ArrowLeft size={24} color={COLORS.text} />
           </TouchableOpacity>
+          
+          {/* Menu Button (only for facilitators) */}
+          {isFacilitator && (
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => setMenuVisible(!menuVisible)}
+            >
+              <MoreVertical size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          )}
+          
+          {/* Menu Backdrop - closes when clicked */}
+          {menuVisible && (
+            <TouchableOpacity
+              style={styles.menuBackdrop}
+              activeOpacity={0.0}
+              onPress={() => setMenuVisible(false)}
+            />
+          )}
+          
+          {/* Action Menu */}
+          {menuVisible && (
+            <View style={styles.menuContainer}>
+              
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  handleEditCourse();
+                }}
+              >
+                <Edit2 size={20} color={COLORS.primary} />
+                <Text style={styles.menuItemText}>Edit Course</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  handleDeleteCourse();
+                }}
+              >
+                <Trash2 size={20} color={COLORS.secondary} />
+                <Text style={[styles.menuItemText, { color: COLORS.secondary }]}>Delete Course</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
         
         {/* Course Content */}
@@ -516,26 +606,7 @@ export default function CourseDetailsScreen({ route, navigation }) {
             {renderUnitsList()}
           </View>
           
-          {/* Action Buttons (for facilitators only) */}
-          {isFacilitator && (
-            <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.editButton]}
-                onPress={() => setModalVisible(true)}
-              >
-                <Edit2 size={18} color={COLORS.primary} />
-                <Text style={styles.actionButtonText}>Edit</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.deleteButton]}
-                onPress={handleDeleteCourse}
-              >
-                <Trash2 size={18} color={COLORS.secondary} />
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Removed the action buttons from here */}
         </View>
       </ScrollView>
       
@@ -580,6 +651,59 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
+  },
+  menuButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  menuBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 15,
+  },
+  menuContainer: {
+    position: 'absolute',
+    top: 64,
+    right: 16,
+    zIndex: 20,
+    width: 180,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: COLORS.text,
   },
   mainContainer: {
     flexGrow: 1,
@@ -722,17 +846,33 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
     width: '100%',
     maxWidth: 500,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 8,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 20,
-    textAlign: 'center',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalScrollContent: {
+    flexGrow: 0,
+  },
+  modalScrollContentContainer: {
+    padding: 24,
+    paddingTop: 8,
   },
   
   // Unit section styles
