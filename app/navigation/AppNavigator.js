@@ -19,6 +19,7 @@ import SupportScreen from '../screens/SupportScreen';
 import CoursesScreen from '../screens/CoursesScreen';
 import CourseDetailsScreen from '../screens/courses/CourseDetailsScreen';
 import UnitDetailsScreen from '../screens/courses/UnitDetailsScreen';
+import LessonDetailsScreen from '../screens/courses/LessonDetailsScreen';
 import AllRecordingsScreen from '../screens/AllRecordingsScreen';
 import RecordingPlayerScreen from '../screens/RecordingPlayerScreen';
 import SessionsScreen from '../screens/SessionsScreen';
@@ -310,6 +311,21 @@ function AppNavigator() {
         options={{
           headerShown: false,
           title: 'Unit Details',
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+      <AppStack.Screen 
+        name="LessonDetails" 
+        component={LessonDetailsScreen}
+        options={{
+          headerShown: false,
+          title: 'Lesson Details',
           headerStyle: {
             backgroundColor: COLORS.primary,
           },

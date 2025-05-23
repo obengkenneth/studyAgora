@@ -169,6 +169,31 @@ create table public.pre_recorded_sessions (
   constraint pre_recorded_sessions_facilitator_id_fkey foreign KEY (facilitator_id) references user_profiles (user_id),
   constraint pre_recorded_sessions_curriculum_check check (
     (
+
+## lesson_notes
+create table public.lesson_notes (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  lesson_id uuid not null,
+  user_id uuid not null,
+  content text not null,
+  timestamp integer null, -- video timestamp in milliseconds
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  deleted_at timestamp with time zone null,
+  constraint lesson_notes_pkey primary key (id),
+  constraint lesson_notes_lesson_id_fkey foreign key (lesson_id) references lessons (id),
+  constraint lesson_notes_user_id_fkey foreign key (user_id) references auth.users (id)
+);
+
+create index IF not exists idx_lesson_notes_lesson_id on public.lesson_notes using btree (lesson_id) TABLESPACE pg_default;
+create index IF not exists idx_lesson_notes_user_id on public.lesson_notes using btree (user_id) TABLESPACE pg_default;
+create index IF not exists idx_lesson_notes_deleted_at on public.lesson_notes using btree (deleted_at) TABLESPACE pg_default;
+
+create trigger set_timestamp_lesson_notes BEFORE
+update on lesson_notes for EACH row
+execute FUNCTION trigger_set_timestamp ();
+
+
       curriculum = any (
         array['cambridge'::text, 'sat'::text, 'ielts'::text]
       )

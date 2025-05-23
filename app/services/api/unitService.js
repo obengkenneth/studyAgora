@@ -26,8 +26,39 @@ export const fetchUnitsByCourse = async (courseId, showDrafts = false) => {
     
     // Execute query
     const { data, error } = await query;
-      
+    
     if (error) throw error;
+    
+    // Now fetch lesson counts for each unit
+    if (data && data.length > 0) {
+      // Create an array of promises to fetch the count for each unit
+      const countPromises = data.map(async (unit) => {
+        // Start building the query
+        let countQuery = supabase
+          .from('lessons')
+          .select('*', { count: 'exact', head: true })
+          .eq('unit_id', unit.id)
+          .is('deleted_at', null);
+        
+        // Filter for published lessons only when showDrafts is false (for non-facilitators)
+        if (!showDrafts) {
+          countQuery = countQuery.eq('is_published', true);
+        }
+        
+        const { count, error: countError } = await countQuery;
+        
+        if (countError) {
+          console.error('Error fetching lesson count:', countError);
+          return { ...unit, lessonCount: 0 };
+        }
+        
+        return { ...unit, lessonCount: count || 0 };
+      });
+      
+      // Wait for all count promises to resolve
+      return await Promise.all(countPromises);
+    }
+    
     return data || [];
   } catch (error) {
     console.error('Error fetching units:', error);

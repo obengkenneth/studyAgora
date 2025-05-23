@@ -431,7 +431,11 @@ export default function CourseDetailsScreen({ route, navigation }) {
             <View style={styles.unitCardFooter}>
               <View style={styles.unitCardStatus}>
                 <Video size={16} color={COLORS.lightText} />
-                <Text style={styles.unitCardStatusText}>0 lessons</Text>
+                <Text style={styles.unitCardStatusText}>
+                  {unit.lessonCount > 0 ? 
+                    `${unit.lessonCount} ${unit.lessonCount === 1 ? 'lesson' : 'lessons'}` : 
+                    'No lessons'}
+                </Text>
               </View>
             </View>
           </TouchableOpacity>
